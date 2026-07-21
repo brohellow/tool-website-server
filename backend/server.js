@@ -29,7 +29,7 @@ const socketRoomMap = new Map();
 app.use(cors());
 app.use(express.json());
 
-const isProduction = true; // 服务器始终以生产模式运行
+const isProduction = true;
 
 if (isProduction) {
   const distPath = path.join(__dirname, '../dist');
@@ -56,91 +56,74 @@ const authenticateToken = (req, res, next) => {
 app.post('/api/auth/login', (req, res) => {
   const { email, password } = req.body;
 
-  db.get('SELECT * FROM users WHERE email = ?', [email], (err, user) => {
-    if (err) {
-      return res.status(500).json({ error: '服务器错误' });
-    }
+  try {
+    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
 
     if (!user) {
       return res.status(401).json({ error: '邮箱或密码错误' });
     }
 
-    bcrypt.compare(password, user.password, (err, result) => {
-      if (err) {
-        return res.status(500).json({ error: '服务器错误' });
-      }
+    const result = bcrypt.compareSync(password, user.password);
 
-      if (!result) {
-        return res.status(401).json({ error: '邮箱或密码错误' });
-      }
+    if (!result) {
+      return res.status(401).json({ error: '邮箱或密码错误' });
+    }
 
-      const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '24h' });
+    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '24h' });
 
-      res.json({
-        user: {
-          id: user.id,
-          email: user.email,
-          username: user.username,
-          avatar_url: user.avatar_url,
-          created_at: user.created_at
-        },
-        token
-      });
+    res.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        avatar_url: user.avatar_url,
+        created_at: user.created_at
+      },
+      token
     });
-  });
+  } catch (e) {
+    return res.status(500).json({ error: '服务器错误' });
+  }
 });
 
 app.post('/api/auth/register', (req, res) => {
   const { email, password, username } = req.body;
 
-  db.get('SELECT * FROM users WHERE email = ?', [email], (err, existingUser) => {
-    if (err) {
-      return res.status(500).json({ error: '服务器错误' });
-    }
+  try {
+    const existingUser = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
 
     if (existingUser) {
       return res.status(409).json({ error: '该邮箱已被注册' });
     }
 
-    bcrypt.hash(password, 10, (err, hashedPassword) => {
-      if (err) {
-        return res.status(500).json({ error: '服务器错误' });
-      }
+    const hashedPassword = bcrypt.hashSync(password, 10);
+    const userId = uuidv4();
+    const createdAt = new Date().toISOString();
 
-      const userId = uuidv4();
-      const createdAt = new Date().toISOString();
+    db.prepare(
+      'INSERT INTO users (id, email, password, username, created_at) VALUES (?, ?, ?, ?, ?)'
+    ).run(userId, email, hashedPassword, username, createdAt);
 
-      db.run(
-        'INSERT INTO users (id, email, password, username, created_at) VALUES (?, ?, ?, ?, ?)',
-        [userId, email, hashedPassword, username, createdAt],
-        (err) => {
-          if (err) {
-            return res.status(500).json({ error: '服务器错误' });
-          }
+    const token = jwt.sign({ id: userId, email }, JWT_SECRET, { expiresIn: '24h' });
 
-          const token = jwt.sign({ id: userId, email }, JWT_SECRET, { expiresIn: '24h' });
-
-          res.json({
-            user: {
-              id: userId,
-              email,
-              username,
-              avatar_url: null,
-              created_at: createdAt
-            },
-            token
-          });
-        }
-      );
+    res.json({
+      user: {
+        id: userId,
+        email,
+        username,
+        avatar_url: null,
+        created_at: createdAt
+      },
+      token
     });
-  });
+  } catch (e) {
+    return res.status(500).json({ error: '服务器错误' });
+  }
 });
 
 app.get('/api/auth/user', authenticateToken, (req, res) => {
-  db.get('SELECT * FROM users WHERE id = ?', [req.user.id], (err, user) => {
-    if (err) {
-      return res.status(500).json({ error: '服务器错误' });
-    }
+  try {
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
 
     if (!user) {
       return res.status(404).json({ error: '用户不存在' });
@@ -153,62 +136,62 @@ app.get('/api/auth/user', authenticateToken, (req, res) => {
       avatar_url: user.avatar_url,
       created_at: user.created_at
     });
-  });
+  } catch (e) {
+    return res.status(500).json({ error: '服务器错误' });
+  }
 });
 
 app.get('/api/tools', (req, res) => {
-  db.all('SELECT * FROM tools ORDER BY created_at DESC', (err, tools) => {
-    if (err) {
-      return res.status(500).json({ error: '服务器错误' });
-    }
+  try {
+    const tools = db.prepare('SELECT * FROM tools ORDER BY created_at DESC').all();
     res.json(tools);
-  });
+  } catch (e) {
+    return res.status(500).json({ error: '服务器错误' });
+  }
 });
 
 app.get('/api/tools/search', (req, res) => {
   const { query } = req.query;
-  
+
   if (!query || query.trim() === '') {
     return res.json([]);
   }
-  
+
   const searchPattern = `%${query}%`;
-  
-  db.all(
-    'SELECT * FROM tools WHERE name LIKE ? OR description LIKE ? OR category LIKE ? ORDER BY created_at DESC',
-    [searchPattern, searchPattern, searchPattern],
-    (err, tools) => {
-      if (err) {
-        return res.status(500).json({ error: '服务器错误' });
-      }
-      res.json(tools);
-    }
-  );
+
+  try {
+    const tools = db.prepare(
+      'SELECT * FROM tools WHERE name LIKE ? OR description LIKE ? OR category LIKE ? ORDER BY created_at DESC'
+    ).all(searchPattern, searchPattern, searchPattern);
+    res.json(tools);
+  } catch (e) {
+    return res.status(500).json({ error: '服务器错误' });
+  }
 });
 
 app.get('/api/tools/featured', (req, res) => {
-  db.all('SELECT * FROM tools WHERE featured = 1 ORDER BY created_at DESC', (err, tools) => {
-    if (err) {
-      return res.status(500).json({ error: '服务器错误' });
-    }
+  try {
+    const tools = db.prepare('SELECT * FROM tools WHERE featured = 1 ORDER BY created_at DESC').all();
     res.json(tools);
-  });
+  } catch (e) {
+    return res.status(500).json({ error: '服务器错误' });
+  }
 });
 
 app.get('/api/tools/category/:category', (req, res) => {
-  db.all('SELECT * FROM tools WHERE category = ? ORDER BY created_at DESC', [req.params.category], (err, tools) => {
-    if (err) {
-      return res.status(500).json({ error: '服务器错误' });
-    }
+  try {
+    const tools = db.prepare('SELECT * FROM tools WHERE category = ? ORDER BY created_at DESC').all(req.params.category);
     res.json(tools);
-  });
+  } catch (e) {
+    return res.status(500).json({ error: '服务器错误' });
+  }
 });
 
 const parseToken = (req) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
   if (!token) return null;
-  
+
   try {
     return jwt.verify(token, JWT_SECRET);
   } catch (err) {
@@ -217,130 +200,102 @@ const parseToken = (req) => {
 };
 
 const asyncUpdateViews = (userId, toolId) => {
-  db.get('SELECT * FROM tool_views WHERE user_id = ? AND tool_id = ?', [userId, toolId], (err, existingView) => {
-    if (err) {
-      console.error('查询浏览记录失败:', err);
-      return;
-    }
-    
+  try {
+    const existingView = db.prepare('SELECT * FROM tool_views WHERE user_id = ? AND tool_id = ?').get(userId, toolId);
+
     if (!existingView) {
-      db.run('INSERT INTO tool_views (id, user_id, tool_id, created_at) VALUES (?, ?, ?, ?)', 
-        [uuidv4(), userId, toolId, new Date().toISOString()], 
-        (insertErr) => {
-          if (!insertErr) {
-            db.run('UPDATE tools SET views_count = views_count + 1 WHERE id = ?', [toolId], (updateErr) => {
-              if (updateErr) {
-                console.error('更新浏览量失败:', updateErr);
-              }
-            });
-          }
-        }
-      );
+      db.prepare('INSERT INTO tool_views (id, user_id, tool_id, created_at) VALUES (?, ?, ?, ?)')
+        .run(uuidv4(), userId, toolId, new Date().toISOString());
+      db.prepare('UPDATE tools SET views_count = views_count + 1 WHERE id = ?').run(toolId);
     }
-  });
+  } catch (e) {
+    console.error('更新浏览量失败:', e);
+  }
 };
 
 app.get('/api/tools/:id', (req, res) => {
-  db.get('SELECT * FROM tools WHERE id = ?', [req.params.id], (err, tool) => {
-    if (err) {
-      return res.status(500).json({ error: '服务器错误' });
-    }
+  try {
+    const tool = db.prepare('SELECT * FROM tools WHERE id = ?').get(req.params.id);
     if (!tool) {
       return res.status(404).json({ error: '工具不存在' });
     }
-    
+
     res.json(tool);
-    
+
     const decodedToken = parseToken(req);
     if (decodedToken && decodedToken.id) {
       asyncUpdateViews(decodedToken.id, req.params.id);
     }
-  });
+  } catch (e) {
+    return res.status(500).json({ error: '服务器错误' });
+  }
 });
 
 app.get('/api/categories', (req, res) => {
-  db.all('SELECT DISTINCT category FROM tools', (err, categories) => {
-    if (err) {
-      return res.status(500).json({ error: '服务器错误' });
-    }
+  try {
+    const categories = db.prepare('SELECT DISTINCT category FROM tools').all();
 
-    const categoryNames = categories.map(c => c.category);
-    const result = [];
-
-    let processed = 0;
-    categoryNames.forEach(category => {
-      db.get('SELECT COUNT(*) AS count FROM tools WHERE category = ?', [category], (err, countResult) => {
-        if (err) {
-          return res.status(500).json({ error: '服务器错误' });
-        }
-        result.push({
-          name: category,
-          count: countResult.count
-        });
-        processed++;
-        if (processed === categoryNames.length) {
-          res.json(result);
-        }
-      });
+    const result = categories.map(c => {
+      const { count } = db.prepare('SELECT COUNT(*) AS count FROM tools WHERE category = ?').get(c.category);
+      return { name: c.category, count };
     });
 
-    if (categoryNames.length === 0) {
-      res.json([]);
-    }
-  });
+    res.json(result);
+  } catch (e) {
+    return res.status(500).json({ error: '服务器错误' });
+  }
 });
 
 app.get('/api/comments/:toolId', (req, res) => {
-  db.all(
-    `SELECT comments.*, users.username, users.email 
-     FROM comments 
-     JOIN users ON comments.user_id = users.id 
-     WHERE comments.tool_id = ? 
-     ORDER BY comments.created_at DESC`,
-    [req.params.toolId],
-    (err, comments) => {
-      if (err) {
-        return res.status(500).json({ error: '服务器错误' });
+  try {
+    const comments = db.prepare(
+      `SELECT comments.*, users.username, users.email 
+       FROM comments 
+       JOIN users ON comments.user_id = users.id 
+       WHERE comments.tool_id = ? 
+       ORDER BY comments.created_at DESC`
+    ).all(req.params.toolId);
+
+    res.json(comments.map(c => ({
+      ...c,
+      user: {
+        id: c.user_id,
+        username: c.username,
+        email: c.email
       }
-      res.json(comments.map(c => ({
-        ...c,
-        user: {
-          id: c.user_id,
-          username: c.username,
-          email: c.email
-        }
-      })));
-    }
-  );
+    })));
+  } catch (e) {
+    return res.status(500).json({ error: '服务器错误' });
+  }
 });
 
 app.get('/api/comments', (req, res) => {
-  db.all(
-    `SELECT comments.*, users.username, users.email, tools.name AS tool_name, tools.icon AS tool_icon
-     FROM comments 
-     JOIN users ON comments.user_id = users.id 
-     JOIN tools ON comments.tool_id = tools.id
-     ORDER BY comments.created_at DESC
-     LIMIT 50`,
-    (err, comments) => {
-      if (err) {
-        return res.status(500).json({ error: '服务器错误' });
+  try {
+    const comments = db.prepare(
+      `SELECT comments.*, users.username, users.email, tools.name AS tool_name, tools.icon AS tool_icon
+       FROM comments 
+       JOIN users ON comments.user_id = users.id 
+       JOIN tools ON comments.tool_id = tools.id
+       ORDER BY comments.created_at DESC
+       LIMIT 50`
+    ).all();
+
+    res.json(comments.map(c => ({
+      ...c,
+      user: {
+        id: c.user_id,
+        username: c.username,
+        email: c.email
+      },
+      tool: {
+        id: c.tool_id,
+        name: c.tool_name,
+        icon: c.tool_icon
       }
-      res.json(comments.map(c => ({
-        ...c,
-        user: {
-          id: c.user_id,
-          username: c.username,
-          email: c.email
-        },
-        tool: {
-          id: c.tool_id,
-          name: c.tool_name,
-          icon: c.tool_icon
-        }
-      })));
-    }
-  );
+    })));
+  } catch (e) {
+    return res.status(500).json({ error: '服务器错误' });
+  }
 });
 
 app.post('/api/comments', authenticateToken, (req, res) => {
@@ -348,83 +303,72 @@ app.post('/api/comments', authenticateToken, (req, res) => {
   const commentId = uuidv4();
   const createdAt = new Date().toISOString();
 
-  db.run(
-    'INSERT INTO comments (id, user_id, tool_id, parent_id, content, rating, likes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    [commentId, req.user.id, tool_id, parent_id || null, content, rating || 5, 0, createdAt],
-    (err) => {
-      if (err) {
-        return res.status(500).json({ error: '服务器错误' });
+  try {
+    db.prepare(
+      'INSERT INTO comments (id, user_id, tool_id, parent_id, content, rating, likes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+    ).run(commentId, req.user.id, tool_id, parent_id || null, content, rating || 5, 0, createdAt);
+
+    const user = db.prepare('SELECT username, email FROM users WHERE id = ?').get(req.user.id);
+
+    res.json({
+      id: commentId,
+      user_id: req.user.id,
+      tool_id,
+      parent_id: parent_id || null,
+      content,
+      rating: rating || 5,
+      likes: 0,
+      created_at: createdAt,
+      user: {
+        id: req.user.id,
+        username: user.username,
+        email: user.email
       }
-
-      db.get('SELECT username, email FROM users WHERE id = ?', [req.user.id], (err, user) => {
-        if (err) {
-          return res.status(500).json({ error: '服务器错误' });
-        }
-
-        res.json({
-          id: commentId,
-          user_id: req.user.id,
-          tool_id,
-          parent_id: parent_id || null,
-          content,
-          rating: rating || 5,
-          likes: 0,
-          created_at: createdAt,
-          user: {
-            id: req.user.id,
-            username: user.username,
-            email: user.email
-          }
-        });
-      });
-    }
-  );
+    });
+  } catch (e) {
+    return res.status(500).json({ error: '服务器错误' });
+  }
 });
 
 app.put('/api/comments/:id/likes', authenticateToken, (req, res) => {
   const { id } = req.params;
 
-  db.run('UPDATE comments SET likes = likes + 1 WHERE id = ?', [id], (err) => {
-    if (err) {
-      return res.status(500).json({ error: '服务器错误' });
-    }
+  try {
+    db.prepare('UPDATE comments SET likes = likes + 1 WHERE id = ?').run(id);
 
-    db.get('SELECT likes FROM comments WHERE id = ?', [id], (err, result) => {
-      if (err) {
-        return res.status(500).json({ error: '服务器错误' });
-      }
-      res.json({ likes: result.likes });
-    });
-  });
+    const result = db.prepare('SELECT likes FROM comments WHERE id = ?').get(id);
+    res.json({ likes: result.likes });
+  } catch (e) {
+    return res.status(500).json({ error: '服务器错误' });
+  }
 });
 
 app.get('/api/favorites/:userId', authenticateToken, (req, res) => {
-  db.all(
-    `SELECT favorites.*, tools.* 
-     FROM favorites 
-     JOIN tools ON favorites.tool_id = tools.id 
-     WHERE favorites.user_id = ? 
-     ORDER BY favorites.created_at DESC`,
-    [req.params.userId],
-    (err, favorites) => {
-      if (err) {
-        return res.status(500).json({ error: '服务器错误' });
+  try {
+    const favorites = db.prepare(
+      `SELECT favorites.*, tools.* 
+       FROM favorites 
+       JOIN tools ON favorites.tool_id = tools.id 
+       WHERE favorites.user_id = ? 
+       ORDER BY favorites.created_at DESC`
+    ).all(req.params.userId);
+
+    res.json(favorites.map(f => ({
+      ...f,
+      tool: {
+        id: f.tool_id,
+        name: f.name,
+        category: f.category,
+        description: f.description,
+        icon: f.icon,
+        featured: f.featured,
+        usage_count: f.usage_count,
+        created_at: f.created_at
       }
-      res.json(favorites.map(f => ({
-        ...f,
-        tool: {
-          id: f.tool_id,
-          name: f.name,
-          category: f.category,
-          description: f.description,
-          icon: f.icon,
-          featured: f.featured,
-          usage_count: f.usage_count,
-          created_at: f.created_at
-        }
-      })));
-    }
-  );
+    })));
+  } catch (e) {
+    return res.status(500).json({ error: '服务器错误' });
+  }
 });
 
 app.post('/api/favorites', authenticateToken, (req, res) => {
@@ -432,140 +376,123 @@ app.post('/api/favorites', authenticateToken, (req, res) => {
   const favoriteId = uuidv4();
   const createdAt = new Date().toISOString();
 
-  db.run(
-    'INSERT INTO favorites (id, user_id, tool_id, created_at) VALUES (?, ?, ?, ?)',
-    [favoriteId, req.user.id, tool_id, createdAt],
-    (err) => {
-      if (err) {
-        if (err.code === 'SQLITE_CONSTRAINT') {
-          return res.status(409).json({ error: '已收藏该工具' });
-        }
-        return res.status(500).json({ error: '服务器错误' });
-      }
+  try {
+    db.prepare(
+      'INSERT INTO favorites (id, user_id, tool_id, created_at) VALUES (?, ?, ?, ?)'
+    ).run(favoriteId, req.user.id, tool_id, createdAt);
 
-      db.get('SELECT * FROM tools WHERE id = ?', [tool_id], (err, tool) => {
-        if (err) {
-          return res.status(500).json({ error: '服务器错误' });
-        }
+    const tool = db.prepare('SELECT * FROM tools WHERE id = ?').get(tool_id);
 
-        res.json({
-          id: favoriteId,
-          user_id: req.user.id,
-          tool_id,
-          created_at: createdAt,
-          tool
-        });
-      });
+    res.json({
+      id: favoriteId,
+      user_id: req.user.id,
+      tool_id,
+      created_at: createdAt,
+      tool
+    });
+  } catch (e) {
+    if (e.code === 'SQLITE_CONSTRAINT') {
+      return res.status(409).json({ error: '已收藏该工具' });
     }
-  );
+    return res.status(500).json({ error: '服务器错误' });
+  }
 });
 
 app.delete('/api/favorites/:toolId', authenticateToken, (req, res) => {
-  db.run(
-    'DELETE FROM favorites WHERE user_id = ? AND tool_id = ?',
-    [req.user.id, req.params.toolId],
-    (err) => {
-      if (err) {
-        return res.status(500).json({ error: '服务器错误' });
-      }
-      res.json({ success: true });
-    }
-  );
+  try {
+    db.prepare(
+      'DELETE FROM favorites WHERE user_id = ? AND tool_id = ?'
+    ).run(req.user.id, req.params.toolId);
+    res.json({ success: true });
+  } catch (e) {
+    return res.status(500).json({ error: '服务器错误' });
+  }
 });
 
 app.get('/api/favorites/check/:userId/:toolId', authenticateToken, (req, res) => {
-  db.get(
-    'SELECT id FROM favorites WHERE user_id = ? AND tool_id = ?',
-    [req.params.userId, req.params.toolId],
-    (err, result) => {
-      if (err) {
-        return res.status(500).json({ error: '服务器错误' });
-      }
-      res.json({ isFavorite: !!result });
-    }
-  );
+  try {
+    const result = db.prepare(
+      'SELECT id FROM favorites WHERE user_id = ? AND tool_id = ?'
+    ).get(req.params.userId, req.params.toolId);
+    res.json({ isFavorite: !!result });
+  } catch (e) {
+    return res.status(500).json({ error: '服务器错误' });
+  }
 });
 
 app.put('/api/tools/:id/usage', (req, res) => {
-  db.run(
-    'UPDATE tools SET usage_count = usage_count + 1 WHERE id = ?',
-    [req.params.id],
-    (err) => {
-      if (err) {
-        return res.status(500).json({ error: '服务器错误' });
-      }
-      res.json({ success: true });
-    }
-  );
+  try {
+    db.prepare(
+      'UPDATE tools SET usage_count = usage_count + 1 WHERE id = ?'
+    ).run(req.params.id);
+    res.json({ success: true });
+  } catch (e) {
+    return res.status(500).json({ error: '服务器错误' });
+  }
 });
 
 app.put('/api/tools/:id/views', (req, res) => {
-  db.run(
-    'UPDATE tools SET views_count = views_count + 1 WHERE id = ?',
-    [req.params.id],
-    (err) => {
-      if (err) {
-        return res.status(500).json({ error: '服务器错误' });
-      }
-      res.json({ success: true });
-    }
-  );
+  try {
+    db.prepare(
+      'UPDATE tools SET views_count = views_count + 1 WHERE id = ?'
+    ).run(req.params.id);
+    res.json({ success: true });
+  } catch (e) {
+    return res.status(500).json({ error: '服务器错误' });
+  }
 });
 
 app.get('/api/user-views/:userId', authenticateToken, (req, res) => {
-  db.all(
-    `SELECT tool_views.*, tools.* 
-     FROM tool_views 
-     JOIN tools ON tool_views.tool_id = tools.id 
-     WHERE tool_views.user_id = ? 
-     ORDER BY tool_views.created_at DESC
-     LIMIT 20`,
-    [req.params.userId],
-    (err, views) => {
-      if (err) {
-        return res.status(500).json({ error: '服务器错误' });
+  try {
+    const views = db.prepare(
+      `SELECT tool_views.*, tools.* 
+       FROM tool_views 
+       JOIN tools ON tool_views.tool_id = tools.id 
+       WHERE tool_views.user_id = ? 
+       ORDER BY tool_views.created_at DESC
+       LIMIT 20`
+    ).all(req.params.userId);
+
+    res.json(views.map(v => ({
+      ...v,
+      tool: {
+        id: v.tool_id,
+        name: v.name,
+        category: v.category,
+        description: v.description,
+        icon: v.icon,
+        featured: v.featured,
+        usage_count: v.usage_count,
+        views_count: v.views_count,
+        created_at: v.created_at
       }
-      res.json(views.map(v => ({
-        ...v,
-        tool: {
-          id: v.tool_id,
-          name: v.name,
-          category: v.category,
-          description: v.description,
-          icon: v.icon,
-          featured: v.featured,
-          usage_count: v.usage_count,
-          views_count: v.views_count,
-          created_at: v.created_at
-        }
-      })));
-    }
-  );
+    })));
+  } catch (e) {
+    return res.status(500).json({ error: '服务器错误' });
+  }
 });
 
 app.delete('/api/user-views/:viewId', authenticateToken, (req, res) => {
-  db.run(
-    'DELETE FROM tool_views WHERE id = ? AND user_id = ?',
-    [req.params.viewId, req.user.id],
-    (err) => {
-      if (err) {
-        return res.status(500).json({ error: '服务器错误' });
-      }
-      res.json({ success: true });
-    }
-  );
+  try {
+    db.prepare(
+      'DELETE FROM tool_views WHERE id = ? AND user_id = ?'
+    ).run(req.params.viewId, req.user.id);
+    res.json({ success: true });
+  } catch (e) {
+    return res.status(500).json({ error: '服务器错误' });
+  }
 });
 
 app.put('/api/users/:id', authenticateToken, (req, res) => {
   const { username, bio, avatar_url } = req.body;
-  
+
   if (req.user.id !== req.params.id) {
     return res.status(403).json({ error: '无权修改此用户信息' });
   }
-  
+
   const updates = [];
   const values = [];
-  
+
   if (username) {
     updates.push('username = ?');
     values.push(username);
@@ -578,29 +505,23 @@ app.put('/api/users/:id', authenticateToken, (req, res) => {
     updates.push('avatar_url = ?');
     values.push(avatar_url);
   }
-  
+
   if (updates.length === 0) {
     return res.status(400).json({ error: '没有提供需要更新的字段' });
   }
-  
+
   values.push(req.params.id);
-  
-  db.run(
-    `UPDATE users SET ${updates.join(', ')} WHERE id = ?`,
-    values,
-    (err) => {
-      if (err) {
-        return res.status(500).json({ error: '服务器错误' });
-      }
-      
-      db.get('SELECT id, email, username, avatar_url, bio, created_at FROM users WHERE id = ?', [req.params.id], (err, user) => {
-        if (err) {
-          return res.status(500).json({ error: '服务器错误' });
-        }
-        res.json(user);
-      });
-    }
-  );
+
+  try {
+    db.prepare(
+      `UPDATE users SET ${updates.join(', ')} WHERE id = ?`
+    ).run(...values);
+
+    const user = db.prepare('SELECT id, email, username, avatar_url, bio, created_at FROM users WHERE id = ?').get(req.params.id);
+    res.json(user);
+  } catch (e) {
+    return res.status(500).json({ error: '服务器错误' });
+  }
 });
 
 app.get('/api/game/rooms', (req, res) => {
@@ -698,7 +619,7 @@ io.on('connection', (socket) => {
 
   socket.on('play-card', ({ roomId, playerId, cardId, targetPlayerId }) => {
     const result = gameEngine.playCard(roomId, playerId, cardId, targetPlayerId);
-    
+
     if (result && result.success) {
       const publicState = gameEngine.getPublicState(roomId);
       io.to(roomId).emit('room-update', publicState);
@@ -716,7 +637,7 @@ io.on('connection', (socket) => {
 
           const targetPrivateState = gameEngine.getPrivateState(roomId, targetPlayerId);
           if (targetPrivateState) {
-            const targetSocket = Array.from(socketRoomMap.entries()).find(([_, rid]) => rid === roomId && 
+            const targetSocket = Array.from(socketRoomMap.entries()).find(([_, rid]) => rid === roomId &&
               gameEngine.getRoom(roomId)?.players.find(p => p.id === targetPlayerId)?.socketId === _);
             if (targetSocket) {
               io.to(targetSocket[0]).emit('private-state', targetPrivateState);
@@ -801,7 +722,7 @@ io.on('connection', (socket) => {
 });
 
 async function startServer() {
-  await initDatabase();
+  initDatabase();
   return new Promise((resolve) => {
     const httpServer = server.listen(PORT, () => {
       console.log(`服务器运行在 http://localhost:${PORT}`);
