@@ -6,7 +6,7 @@ const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 const http = require('http');
 const { Server } = require('socket.io');
-const { db, initDatabase } = require('./database');
+const { db, initDatabase } = require('./memoryDb');
 const { GameEngine } = require('./gameEngine');
 
 const app = express();
