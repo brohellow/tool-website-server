@@ -1,0 +1,9 @@
+node_modules/
+dist/
+release/
+.env
+.DS_Store
+*.log
+backend/database.sqlite
+electron/dist/
+node_modules
