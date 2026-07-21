@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useStore } from '../store/useStore';
 import { io, Socket } from 'socket.io-client';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://tool-website-backend.onrender.com';
+
 interface Equipment {
   weapon: { name: string; type: string } | null;
   armor: { name: string; type: string } | null;
@@ -82,7 +84,9 @@ const GameRoom = () => {
       return;
     }
 
-    const newSocket = io();
+    const newSocket = io(API_BASE_URL, {
+      transports: ['websocket', 'polling'],
+    });
     setSocket(newSocket);
 
     newSocket.on('room-update', (state) => {
@@ -99,14 +103,20 @@ const GameRoom = () => {
     });
 
     newSocket.on('webrtc-offer', async ({ offer, fromSocketId }) => {
-      const peerConnection = createPeerConnection(newSocket, fromSocketId);
+      console.log('收到webrtc-offer from:', fromSocketId);
+      let peerConnection = peerConnections.get(fromSocketId);
+      if (!peerConnection) {
+        peerConnection = createPeerConnection(newSocket, fromSocketId);
+      }
       try {
         await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
         const answer = await peerConnection.createAnswer();
         await peerConnection.setLocalDescription(answer);
         newSocket.emit('webrtc-answer', { roomId, answer, targetSocketId: fromSocketId });
+        console.log('发送webrtc-answer to:', fromSocketId);
       } catch (err) {
         console.error('处理offer失败:', err);
+        setError('建立语音连接失败');
       }
     });
 
@@ -160,27 +170,55 @@ const GameRoom = () => {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun3.l.google.com:19302' },
+        { urls: 'stun:stun4.l.google.com:19302' },
       ],
     };
 
     const pc = new RTCPeerConnection(configuration);
 
-    localStream?.getTracks().forEach(track => {
-      pc.addTrack(track, localStream!);
-    });
+    if (localStream) {
+      localStream.getTracks().forEach(track => {
+        const sender = pc.addTrack(track, localStream!);
+        console.log('添加本地音轨到PeerConnection:', track.kind, sender);
+      });
+    } else {
+      console.warn('创建PeerConnection时本地流为空');
+    }
 
     pc.onicecandidate = (event) => {
       if (event.candidate) {
         socket.emit('webrtc-ice-candidate', { roomId, candidate: event.candidate, targetSocketId });
+        console.log('发送ICE候选到:', targetSocketId);
+      } else {
+        console.log('ICE收集完成 for:', targetSocketId);
+      }
+    };
+
+    pc.onconnectionstatechange = () => {
+      console.log('PeerConnection状态变化:', pc.connectionState, 'for:', targetSocketId);
+      if (pc.connectionState === 'connected') {
+        console.log('语音连接已建立:', targetSocketId);
+      } else if (pc.connectionState === 'failed') {
+        console.error('语音连接失败:', targetSocketId);
+        setError('与其他玩家的语音连接失败');
       }
     };
 
     pc.ontrack = (event) => {
-      const audioElement = document.createElement('audio');
-      audioElement.srcObject = event.streams[0];
-      audioElement.autoplay = true;
-      audioElement.id = `audio-${targetSocketId}`;
-      document.body.appendChild(audioElement);
+      console.log('收到远程音轨:', event.track.kind, 'from:', targetSocketId);
+      const existingAudio = document.getElementById(`audio-${targetSocketId}`) as HTMLAudioElement;
+      if (existingAudio) {
+        existingAudio.srcObject = event.streams[0];
+      } else {
+        const audioElement = document.createElement('audio');
+        audioElement.srcObject = event.streams[0];
+        audioElement.autoplay = true;
+        audioElement.id = `audio-${targetSocketId}`;
+        audioElement.volume = 1;
+        document.body.appendChild(audioElement);
+      }
     };
 
     setPeerConnections(prev => new Map(prev).set(targetSocketId, pc));
@@ -190,10 +228,18 @@ const GameRoom = () => {
 
   const initVoice = useCallback(async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      console.log('尝试获取麦克风权限...');
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        }
+      });
+      console.log('麦克风权限获取成功');
       setLocalStream(stream);
 
-      const ctx = new AudioContext();
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
       setAudioContext(ctx);
 
       const analyserNode = ctx.createAnalyser();
@@ -218,7 +264,7 @@ const GameRoom = () => {
       console.error('获取麦克风权限失败:', err);
       setError('无法获取麦克风权限，请检查浏览器设置');
     }
-  }, [socket, roomId, isMuted]);
+  }, [socket, roomId, isMuted, publicState]);
 
   const setupAudioVisualizer = useCallback(() => {
     const visualize = () => {
@@ -280,29 +326,69 @@ const GameRoom = () => {
   }, [handleKeyDown, handleKeyUp]);
 
   const connectToPeers = useCallback(() => {
-    if (!socket || !localStream || !publicState) return;
+    if (!socket || !localStream || !publicState) {
+      console.log('connectToPeers条件不满足:', { socket: !!socket, localStream: !!localStream, publicState: !!publicState });
+      return;
+    }
 
+    console.log('开始连接到其他玩家...');
     publicState.players.forEach(player => {
       if (player.socketId && player.id !== user?.id) {
         if (!peerConnections.has(player.socketId)) {
+          console.log('创建PeerConnection for:', player.name, player.socketId);
           const pc = createPeerConnection(socket, player.socketId);
-          pc.createOffer().then(offer => {
+          pc.createOffer({
+            offerToReceiveAudio: true,
+            offerToReceiveVideo: false,
+          }).then(offer => {
             return pc.setLocalDescription(offer);
           }).then(() => {
             socket.emit('webrtc-offer', { roomId, offer: pc.localDescription, targetSocketId: player.socketId });
+            console.log('发送offer到:', player.name);
           }).catch(err => {
             console.error('创建offer失败:', err);
+            setError('创建语音连接失败');
           });
+        } else {
+          console.log('已存在PeerConnection for:', player.name);
         }
+      } else if (player.id !== user?.id) {
+        console.log('玩家没有socketId:', player.name);
       }
     });
   }, [socket, localStream, publicState, user, roomId, peerConnections, createPeerConnection]);
 
   useEffect(() => {
     if (voiceEnabled && publicState?.gamePhase === 'playing') {
+      console.log('触发connectToPeers: voiceEnabled=true, gamePhase=playing');
       connectToPeers();
     }
   }, [voiceEnabled, publicState, connectToPeers]);
+
+  useEffect(() => {
+    if (publicState?.gamePhase === 'playing') {
+      console.log('游戏开始，检查语音状态...');
+      if (voiceEnabled) {
+        setTimeout(() => connectToPeers(), 500);
+      }
+    }
+  }, [publicState?.gamePhase, voiceEnabled, connectToPeers]);
+
+  useEffect(() => {
+    if (localStream) {
+      console.log('本地音频流就绪，检查是否需要为现有PeerConnection添加音轨');
+      peerConnections.forEach((pc, socketId) => {
+        const senders = pc.getSenders();
+        const hasAudioSender = senders.some(sender => sender.track?.kind === 'audio');
+        if (!hasAudioSender) {
+          console.log('为PeerConnection添加音轨:', socketId);
+          localStream.getTracks().forEach(track => {
+            pc.addTrack(track, localStream!);
+          });
+        }
+      });
+    }
+  }, [localStream, peerConnections]);
 
   useEffect(() => {
     logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
