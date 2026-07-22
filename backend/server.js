@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
@@ -6,6 +8,7 @@ const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 const http = require('http');
 const { Server } = require('socket.io');
+const nodemailer = require('nodemailer');
 const { db, initDatabase } = require('./memoryDb');
 const { GameEngine } = require('./gameEngine');
 
@@ -25,6 +28,45 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-here-change-in-pro
 
 const gameEngine = new GameEngine();
 const socketRoomMap = new Map();
+
+const verificationCodes = new Map();
+
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST || 'smtp.qq.com',
+  port: parseInt(process.env.SMTP_PORT || '587'),
+  secure: process.env.SMTP_SECURE === 'true',
+  auth: {
+    user: process.env.SMTP_USER || '',
+    pass: process.env.SMTP_PASS || '',
+  },
+});
+
+const sendVerificationEmail = async (email, code) => {
+  const mailOptions = {
+    from: `"工具乐园" <${process.env.SMTP_USER || 'noreply@example.com'}>`,
+    to: email,
+    subject: '工具乐园 - 注册验证码',
+    html: `
+      <div style="max-width: 400px; margin: 0 auto; padding: 20px; background: #f5f5f5; border-radius: 8px;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 8px 8px 0 0; text-align: center;">
+          <h1 style="color: white; margin: 0;">工具乐园</h1>
+        </div>
+        <div style="background: white; padding: 20px; border-radius: 0 0 8px 8px;">
+          <p style="color: #333;">您好！</p>
+          <p style="color: #333;">感谢您注册工具乐园，您的验证码是：</p>
+          <div style="text-align: center; margin: 20px 0;">
+            <span style="font-size: 36px; font-weight: bold; color: #667eea;">${code}</span>
+          </div>
+          <p style="color: #999; font-size: 14px;">验证码有效期为5分钟，请尽快使用。</p>
+          <p style="color: #999; font-size: 14px;">如果这不是您本人的操作，请忽略此邮件。</p>
+        </div>
+      </div>
+    `,
+    text: `您好！感谢您注册工具乐园，您的验证码是：${code}。验证码有效期为5分钟，请尽快使用。`,
+  };
+
+  await transporter.sendMail(mailOptions);
+};
 
 app.use(cors());
 app.use(express.json());
@@ -86,14 +128,67 @@ app.post('/api/auth/login', (req, res) => {
   }
 });
 
-app.post('/api/auth/register', (req, res) => {
-  const { email, password, username } = req.body;
+app.post('/api/auth/send-code', async (req, res) => {
+  const { email } = req.body;
 
   try {
     const existingUser = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
 
     if (existingUser) {
       return res.status(409).json({ error: '该邮箱已被注册' });
+    }
+
+    const now = Date.now();
+    const lastSend = verificationCodes.get(email);
+    if (lastSend && now - lastSend.timestamp < 60000) {
+      return res.status(429).json({ error: '发送过于频繁，请稍后再试' });
+    }
+
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+
+    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+      console.log(`[调试模式] 验证码: ${code}，邮箱: ${email}`);
+      verificationCodes.set(email, { code, timestamp: now, expiresAt: now + 300000 });
+      return res.json({ message: '验证码已发送（调试模式）', debugCode: code });
+    }
+
+    await sendVerificationEmail(email, code);
+
+    verificationCodes.set(email, { code, timestamp: now, expiresAt: now + 300000 });
+
+    setTimeout(() => {
+      verificationCodes.delete(email);
+    }, 300000);
+
+    res.json({ message: '验证码已发送到您的邮箱' });
+  } catch (e) {
+    console.error('发送验证码失败:', e);
+    return res.status(500).json({ error: '发送验证码失败，请稍后重试' });
+  }
+});
+
+app.post('/api/auth/register', (req, res) => {
+  const { email, password, username, code } = req.body;
+
+  try {
+    const existingUser = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+
+    if (existingUser) {
+      return res.status(409).json({ error: '该邮箱已被注册' });
+    }
+
+    const storedCode = verificationCodes.get(email);
+    if (!storedCode) {
+      return res.status(400).json({ error: '请先获取验证码' });
+    }
+
+    if (Date.now() > storedCode.expiresAt) {
+      verificationCodes.delete(email);
+      return res.status(400).json({ error: '验证码已过期，请重新获取' });
+    }
+
+    if (storedCode.code !== code) {
+      return res.status(400).json({ error: '验证码错误' });
     }
 
     const hashedPassword = bcrypt.hashSync(password, 10);
@@ -103,6 +198,8 @@ app.post('/api/auth/register', (req, res) => {
     db.prepare(
       'INSERT INTO users (id, email, password, username, created_at) VALUES (?, ?, ?, ?, ?)'
     ).run(userId, email, hashedPassword, username, createdAt);
+
+    verificationCodes.delete(email);
 
     const token = jwt.sign({ id: userId, email }, JWT_SECRET, { expiresIn: '24h' });
 

@@ -43,11 +43,27 @@ export const signIn = async (email: string, password: string) => {
   return data;
 };
 
-export const signUp = async (email: string, password: string, username: string) => {
+export const sendCode = async (email: string) => {
+  const response = await fetch(`${API_BASE_URL}/api/auth/send-code`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({ email }),
+  });
+  
+  const data = await response.json();
+  
+  if (!response.ok) {
+    throw new Error(data.error || '发送验证码失败');
+  }
+  
+  return data;
+};
+
+export const signUp = async (email: string, password: string, username: string, code: string) => {
   const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
     method: 'POST',
     headers: getHeaders(),
-    body: JSON.stringify({ email, password, username }),
+    body: JSON.stringify({ email, password, username, code }),
   });
   
   const data = await response.json();
