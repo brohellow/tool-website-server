@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useStore } from '../store/useStore';
-import { getFavorites, getAllComments, getUserViews, deleteUserView, updateUserProfile } from '../utils/api';
+import { getFavorites, getAllComments, getUserViews, deleteUserView, updateUserProfile, changePassword } from '../utils/api';
 import { Tool, Comment } from '../types';
+import { formatFullDate, formatDateTime } from '../utils/date';
 
 type TabType = 'profile' | 'favorites' | 'history' | 'comments' | 'settings';
 
@@ -22,6 +23,13 @@ const Profile = () => {
   });
   const [showSuccess, setShowSuccess] = useState(false);
   const [themePreference, setThemePreference] = useState('dark');
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [passwordError, setPasswordError] = useState('');
 
   if (!user) {
     navigate('/login');
@@ -116,6 +124,31 @@ const Profile = () => {
     document.body.className = newTheme;
     if (user) {
       setUser({ ...user, theme: newTheme });
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError('');
+    
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordError('两次输入的密码不一致');
+      return;
+    }
+    
+    if (passwordForm.newPassword.length < 6) {
+      setPasswordError('新密码长度至少为6位');
+      return;
+    }
+    
+    try {
+      await changePassword(user.id, passwordForm.currentPassword, passwordForm.newPassword);
+      setShowPasswordModal(false);
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
+    } catch (err: any) {
+      setPasswordError(err.message || '修改密码失败');
     }
   };
 
@@ -281,7 +314,7 @@ const Profile = () => {
                       </div>
                       <div className="glass-card p-4">
                         <div className="text-gray-500 dark:text-gray-400 text-sm mb-1">注册时间</div>
-                        <div className="text-gray-600 dark:text-gray-300">{user.created_at ? new Date(user.created_at).toLocaleDateString('zh-CN') : '-'}</div>
+                        <div className="text-gray-600 dark:text-gray-300">{formatFullDate(user.created_at)}</div>
                       </div>
                     </div>
                   )}
@@ -401,7 +434,7 @@ const Profile = () => {
                           <div className="flex items-center gap-4 mt-1">
                             <span className="text-gray-500 dark:text-gray-500 text-xs">{view.category}</span>
                             <span className="text-gray-500 dark:text-gray-500 text-xs">
-                              {new Date(view.created_at).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                              {formatDateTime(view.created_at)}
                             </span>
                           </div>
                         </div>
@@ -452,7 +485,7 @@ const Profile = () => {
                               </Link>
                               <span className="text-gray-400">|</span>
                               <span className="text-gray-500 dark:text-gray-500 text-sm">
-                                {new Date(comment.created_at).toLocaleDateString('zh-CN')}
+                                {formatFullDate(comment.created_at)}
                               </span>
                             </div>
                             <p className="text-gray-700 dark:text-gray-300 mb-3">{comment.content}</p>
@@ -531,7 +564,7 @@ const Profile = () => {
                       账号安全
                     </h3>
                     <div className="space-y-4">
-                      <button className="w-full flex items-center justify-between p-4 bg-light-100/50 border border-light-200 dark:bg-dark-700/50 dark:border-dark-600 rounded-xl hover:border-light-300 dark:hover:border-dark-500 transition-all group">
+                      <button onClick={() => setShowPasswordModal(true)} className="w-full flex items-center justify-between p-4 bg-light-100/50 border border-light-200 dark:bg-dark-700/50 dark:border-dark-600 rounded-xl hover:border-light-300 dark:hover:border-dark-500 transition-all group">
                         <div className="text-left">
                           <div className="text-gray-700 dark:text-gray-300">修改密码</div>
                           <div className="text-gray-500 text-sm">定期更换密码以保护账号安全</div>
@@ -601,6 +634,82 @@ const Profile = () => {
             )}
           </main>
         </div>
+        
+        {showPasswordModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-dark-800 rounded-2xl w-full max-w-md p-6 shadow-2xl border border-light-200 dark:border-dark-600">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="font-orbitron text-xl font-bold text-gray-800 dark:text-white">修改密码</h2>
+                <button
+                  onClick={() => setShowPasswordModal(false)}
+                  className="p-2 hover:bg-light-100 dark:hover:bg-dark-700 rounded-xl transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </button>
+              </div>
+              
+              {passwordError && (
+                <div className="mb-4 p-3 bg-red-500/10 text-red-500 dark:text-red-400 rounded-xl text-sm">
+                  {passwordError}
+                </div>
+              )}
+              
+              <form onSubmit={handleChangePassword} className="space-y-4">
+                <div>
+                  <label className="block text-gray-500 dark:text-gray-400 text-sm mb-2">当前密码</label>
+                  <input
+                    type="password"
+                    value={passwordForm.currentPassword}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                    className="w-full px-4 py-3 bg-light-100/50 border border-light-200 dark:bg-dark-700/50 dark:border-dark-600 rounded-xl text-gray-800 dark:text-white placeholder-gray-500 focus:border-primary-500 focus:outline-none"
+                    placeholder="请输入当前密码"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-500 dark:text-gray-400 text-sm mb-2">新密码</label>
+                  <input
+                    type="password"
+                    value={passwordForm.newPassword}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                    className="w-full px-4 py-3 bg-light-100/50 border border-light-200 dark:bg-dark-700/50 dark:border-dark-600 rounded-xl text-gray-800 dark:text-white placeholder-gray-500 focus:border-primary-500 focus:outline-none"
+                    placeholder="请输入新密码（至少6位）"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-500 dark:text-gray-400 text-sm mb-2">确认新密码</label>
+                  <input
+                    type="password"
+                    value={passwordForm.confirmPassword}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                    className="w-full px-4 py-3 bg-light-100/50 border border-light-200 dark:bg-dark-700/50 dark:border-dark-600 rounded-xl text-gray-800 dark:text-white placeholder-gray-500 focus:border-primary-500 focus:outline-none"
+                    placeholder="请再次输入新密码"
+                    required
+                  />
+                </div>
+                <div className="flex gap-4 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswordModal(false)}
+                    className="flex-1 py-3 border border-light-200 dark:border-dark-600 text-gray-600 dark:text-gray-400 rounded-xl hover:bg-light-100 dark:hover:bg-dark-700 transition-all"
+                  >
+                    取消
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 py-3 bg-primary-500 text-white rounded-xl hover:bg-primary-600 transition-all font-semibold"
+                  >
+                    确认修改
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

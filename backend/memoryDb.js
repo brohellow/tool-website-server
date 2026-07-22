@@ -1,4 +1,8 @@
 const bcrypt = require('bcryptjs');
+const fs = require('fs');
+const path = require('path');
+
+const DATA_FILE = path.join(__dirname, '../data/db.json');
 
 // ============== In-memory data stores ==============
 // 内存数据库实现，用于 Node v24 兼容性
@@ -22,9 +26,68 @@ function getStore(table) {
   }
 }
 
+// ============== Persistence functions ==============
+function loadData() {
+  try {
+    if (fs.existsSync(DATA_FILE)) {
+      const data = fs.readFileSync(DATA_FILE, 'utf8');
+      const parsed = JSON.parse(data);
+      users = parsed.users || [];
+      tools = parsed.tools || [];
+      comments = parsed.comments || [];
+      favorites = parsed.favorites || [];
+      toolViews = parsed.tool_views || [];
+      searchHistory = parsed.search_history || [];
+      console.log('从文件加载数据成功');
+      return true;
+    }
+  } catch (err) {
+    console.error('加载数据失败:', err);
+  }
+  return false;
+}
+
+function saveData() {
+  try {
+    const dataDir = path.dirname(DATA_FILE);
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+    const data = {
+      users,
+      tools,
+      comments,
+      favorites,
+      tool_views: toolViews,
+      search_history: searchHistory,
+      saved_at: new Date().toISOString(),
+    };
+    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+    console.log('数据保存成功');
+  } catch (err) {
+    console.error('保存数据失败:', err);
+  }
+}
+
+function setupAutoSave() {
+  setInterval(saveData, 60000);
+  
+  process.on('SIGINT', () => {
+    saveData();
+    process.exit(0);
+  });
+  
+  process.on('SIGTERM', () => {
+    saveData();
+    process.exit(0);
+  });
+}
+
 // ============== Seed data ==============
 const initDatabase = () => {
-  if (tools.length === 0) {
+  const loaded = loadData();
+  
+  if (!loaded || tools.length === 0) {
     tools = [
       { id: 'json-formatter', name: 'JSON 格式化工具', category: '开发工具', description: '格式化和验证 JSON 数据，支持语法高亮显示和错误提示', icon: '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>', featured: 1, usage_count: 0, views_count: 0, created_at: new Date().toISOString() },
       { id: 'color-picker', name: '颜色选择器', category: '设计工具', description: '从屏幕任意位置拾取颜色值，支持多种颜色格式输出（HEX、RGB、HSL）', icon: '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="21.17" y1="8" x2="12" y2="8"/><line x1="3.95" y1="6.06" x2="8.54" y2="14"/><line x1="10.88" y1="21.94" x2="15.46" y2="14"/></svg>', featured: 1, usage_count: 0, views_count: 0, created_at: new Date().toISOString() },
@@ -40,7 +103,7 @@ const initDatabase = () => {
     ];
   }
 
-  if (users.length === 0) {
+  if (!loaded || users.length === 0) {
     users = [
       { id: 'user-1', email: 'admin@toolbox.com', password: bcrypt.hashSync('123456', 10), username: '管理员', avatar_url: null, bio: '工具网站管理员，喜欢开发各种实用工具', created_at: new Date().toISOString() },
       { id: 'user-2', email: 'test@example.com', password: bcrypt.hashSync('123456', 10), username: '测试用户', avatar_url: null, bio: '普通用户，喜欢使用各种在线工具', created_at: new Date().toISOString() },
@@ -48,7 +111,7 @@ const initDatabase = () => {
     ];
   }
 
-  if (comments.length === 0) {
+  if (!loaded || comments.length === 0) {
     comments = [
       { id: 'comment-1', user_id: 'user-1', tool_id: 'json-formatter', parent_id: null, content: '非常好用的JSON格式化工具，帮我解决了很多调试问题！', rating: 5, likes: 2, created_at: new Date().toISOString() },
       { id: 'comment-2', user_id: 'user-2', tool_id: 'json-formatter', parent_id: 'comment-1', content: '同感！我也是经常用这个工具调试接口', rating: 0, likes: 1, created_at: new Date().toISOString() },
@@ -59,6 +122,7 @@ const initDatabase = () => {
     ];
   }
 
+  setupAutoSave();
   console.log('内存数据库初始化完成');
 };
 
@@ -250,9 +314,18 @@ function parseSQL(sql) {
 
 function matchesWhere(row, whereClause, paramValue) {
   const { field, op } = whereClause;
+  let colName = field;
+  
   const dotIdx = field.indexOf('.');
-  const colName = dotIdx >= 0 ? field.substring(dotIdx + 1) : field;
+  if (dotIdx >= 0) {
+    const table = field.substring(0, dotIdx).toLowerCase();
+    colName = table + '_' + field.substring(dotIdx + 1);
+  }
+  
   let rowValue = row[colName];
+  if (rowValue === undefined) {
+    rowValue = row[field];
+  }
 
   if (op === 'LIKE') {
     const pattern = String(paramValue).replace(/%/g, '.*').replace(/_/g, '.');
@@ -299,8 +372,12 @@ function applyOrderBy(data, parsed) {
   if (parsed.orderBy.length === 0) return data;
   return [...data].sort((a, b) => {
     for (const ob of parsed.orderBy) {
+      let colName = ob.field;
       const dotIdx = ob.field.indexOf('.');
-      const colName = dotIdx >= 0 ? ob.field.substring(dotIdx + 1) : ob.field;
+      if (dotIdx >= 0) {
+        const table = ob.field.substring(0, dotIdx).toLowerCase();
+        colName = table + '_' + ob.field.substring(dotIdx + 1);
+      }
       const va = a[colName] != null ? a[colName] : '';
       const vb = b[colName] != null ? b[colName] : '';
       if (va < vb) return ob.dir === 'DESC' ? 1 : -1;
@@ -319,23 +396,35 @@ function projectColumns(rows, parsed) {
   if (cols.length === 0) return rows;
   if (cols.length === 1 && cols[0].name === '*' && !cols[0].table) return rows;
 
-  // Determine if any column is a star
-  const hasStar = cols.some(c => c.name === '*');
-
   return rows.map(row => {
-    // If star present, start with all fields; otherwise empty
-    const result = hasStar ? { ...row } : {};
+    const result = {};
     for (const col of cols) {
-      if (col.name === '*') continue; // star already handled by spread
-      if (col.alias) {
-        const dotIdx = col.name.indexOf('.');
-        const srcCol = dotIdx >= 0 ? col.name.substring(dotIdx + 1) : col.name;
-        result[col.alias] = row[srcCol] !== undefined ? row[srcCol] : row[col.name];
+      if (col.name === '*') {
+        for (const [key, value] of Object.entries(row)) {
+          if (!key.includes('_')) {
+            result[key] = value;
+          }
+        }
+        continue;
+      }
+      
+      let srcCol;
+      if (col.table) {
+        srcCol = col.table + '_' + col.name;
       } else {
         const dotIdx = col.name.indexOf('.');
-        const srcCol = dotIdx >= 0 ? col.name.substring(dotIdx + 1) : col.name;
-        result[srcCol] = row[srcCol] !== undefined ? row[srcCol] : row[col.name];
+        if (dotIdx >= 0) {
+          const table = col.name.substring(0, dotIdx).toLowerCase();
+          srcCol = table + '_' + col.name.substring(dotIdx + 1);
+        } else {
+          srcCol = col.name;
+        }
       }
+      
+      const destCol = col.alias || col.name;
+      const finalDestCol = destCol.includes('.') ? destCol.substring(destCol.indexOf('.') + 1) : destCol;
+      
+      result[finalDestCol] = row[srcCol] !== undefined ? row[srcCol] : row[col.name];
     }
     return result;
   });
@@ -353,7 +442,14 @@ function executeJoin(parsed, params) {
     for (const leftRow of mainData) {
       for (const rightRow of joinData) {
         if (leftRow[leftCol] === rightRow[rightCol]) {
-          newRows.push({ ...rightRow, ...leftRow });
+          const merged = {};
+          for (const [key, value] of Object.entries(rightRow)) {
+            merged[join.table + '_' + key] = value;
+          }
+          for (const [key, value] of Object.entries(leftRow)) {
+            merged[parsed.mainTable + '_' + key] = value;
+          }
+          newRows.push(merged);
         }
       }
     }

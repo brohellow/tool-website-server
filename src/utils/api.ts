@@ -345,3 +345,19 @@ export const updateUserProfile = async (userId: string, data: { username?: strin
   
   return result;
 };
+
+export const changePassword = async (userId: string, currentPassword: string, newPassword: string) => {
+  const response = await fetch(`${API_BASE_URL}/api/users/${userId}/password`, {
+    method: 'PUT',
+    headers: getHeaders(),
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+  
+  const result = await response.json();
+  
+  if (!response.ok) {
+    throw new Error(result.error || '修改密码失败');
+  }
+  
+  return result;
+};

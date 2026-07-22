@@ -346,7 +346,9 @@ app.put('/api/comments/:id/likes', authenticateToken, (req, res) => {
 app.get('/api/favorites/:userId', authenticateToken, (req, res) => {
   try {
     const favorites = db.prepare(
-      `SELECT favorites.*, tools.* 
+      `SELECT favorites.id AS fav_id, favorites.user_id, favorites.tool_id, favorites.created_at AS fav_created_at, 
+              tools.id AS tool_id, tools.name, tools.category, tools.description, tools.icon, 
+              tools.featured, tools.usage_count, tools.views_count, tools.created_at AS tool_created_at
        FROM favorites 
        JOIN tools ON favorites.tool_id = tools.id 
        WHERE favorites.user_id = ? 
@@ -354,17 +356,17 @@ app.get('/api/favorites/:userId', authenticateToken, (req, res) => {
     ).all(req.params.userId);
 
     res.json(favorites.map(f => ({
-      ...f,
-      tool: {
-        id: f.tool_id,
-        name: f.name,
-        category: f.category,
-        description: f.description,
-        icon: f.icon,
-        featured: f.featured,
-        usage_count: f.usage_count,
-        created_at: f.created_at
-      }
+      id: f.fav_id,
+      user_id: f.user_id,
+      tool_id: f.tool_id,
+      name: f.name,
+      category: f.category,
+      description: f.description,
+      icon: f.icon,
+      featured: f.featured,
+      usage_count: f.usage_count,
+      views_count: f.views_count,
+      created_at: f.fav_created_at,
     })));
   } catch (e) {
     return res.status(500).json({ error: '服务器错误' });
@@ -445,7 +447,9 @@ app.put('/api/tools/:id/views', (req, res) => {
 app.get('/api/user-views/:userId', authenticateToken, (req, res) => {
   try {
     const views = db.prepare(
-      `SELECT tool_views.*, tools.* 
+      `SELECT tool_views.id, tool_views.user_id, tool_views.tool_id, tool_views.created_at AS view_created_at, 
+              tools.id AS tool_id, tools.name, tools.category, tools.description, tools.icon, 
+              tools.featured, tools.usage_count, tools.views_count, tools.created_at AS tool_created_at
        FROM tool_views 
        JOIN tools ON tool_views.tool_id = tools.id 
        WHERE tool_views.user_id = ? 
@@ -454,18 +458,17 @@ app.get('/api/user-views/:userId', authenticateToken, (req, res) => {
     ).all(req.params.userId);
 
     res.json(views.map(v => ({
-      ...v,
-      tool: {
-        id: v.tool_id,
-        name: v.name,
-        category: v.category,
-        description: v.description,
-        icon: v.icon,
-        featured: v.featured,
-        usage_count: v.usage_count,
-        views_count: v.views_count,
-        created_at: v.created_at
-      }
+      id: v.id,
+      user_id: v.user_id,
+      tool_id: v.tool_id,
+      name: v.name,
+      category: v.category,
+      description: v.description,
+      icon: v.icon,
+      featured: v.featured,
+      usage_count: v.usage_count,
+      views_count: v.views_count,
+      created_at: v.view_created_at,
     })));
   } catch (e) {
     return res.status(500).json({ error: '服务器错误' });
@@ -478,6 +481,46 @@ app.delete('/api/user-views/:viewId', authenticateToken, (req, res) => {
       'DELETE FROM tool_views WHERE id = ? AND user_id = ?'
     ).run(req.params.viewId, req.user.id);
     res.json({ success: true });
+  } catch (e) {
+    return res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+app.put('/api/users/:id/password', authenticateToken, (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+
+  if (req.user.id !== req.params.id) {
+    return res.status(403).json({ error: '无权修改此用户密码' });
+  }
+
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: '请提供当前密码和新密码' });
+  }
+
+  if (newPassword.length < 6) {
+    return res.status(400).json({ error: '新密码长度至少为6位' });
+  }
+
+  try {
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({ error: '用户不存在' });
+    }
+
+    const result = bcrypt.compareSync(currentPassword, user.password);
+
+    if (!result) {
+      return res.status(401).json({ error: '当前密码不正确' });
+    }
+
+    const hashedPassword = bcrypt.hashSync(newPassword, 10);
+
+    db.prepare(
+      'UPDATE users SET password = ? WHERE id = ?'
+    ).run(hashedPassword, req.params.id);
+
+    res.json({ success: true, message: '密码修改成功' });
   } catch (e) {
     return res.status(500).json({ error: '服务器错误' });
   }
