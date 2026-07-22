@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 
 // ============== In-memory data stores ==============
+// 内存数据库实现，用于 Node v24 兼容性
 let users = [];
 let tools = [];
 let comments = [];
