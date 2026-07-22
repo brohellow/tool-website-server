@@ -31,6 +31,14 @@ const socketRoomMap = new Map();
 
 const verificationCodes = new Map();
 
+console.log('[SMTP配置]', {
+  host: process.env.SMTP_HOST,
+  port: process.env.SMTP_PORT,
+  secure: process.env.SMTP_SECURE,
+  user: process.env.SMTP_USER ? '已配置' : '未配置',
+  pass: process.env.SMTP_PASS ? '已配置' : '未配置',
+});
+
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.qq.com',
   port: parseInt(process.env.SMTP_PORT || '587'),
@@ -65,7 +73,18 @@ const sendVerificationEmail = async (email, code) => {
     text: `您好！感谢您注册工具乐园，您的验证码是：${code}。验证码有效期为5分钟，请尽快使用。`,
   };
 
-  await transporter.sendMail(mailOptions);
+  console.log(`[邮件发送] 目标邮箱: ${email}`);
+  
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`[邮件发送成功] Message ID: ${info.messageId}`);
+  } catch (error) {
+    console.error(`[邮件发送失败] 错误信息: ${error.message}`);
+    if (error.response) {
+      console.error(`[邮件发送失败] 服务器响应: ${error.response}`);
+    }
+    throw error;
+  }
 };
 
 app.use(cors());
