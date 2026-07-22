@@ -31,6 +31,8 @@ const Profile = () => {
     confirmPassword: '',
   });
   const [passwordError, setPasswordError] = useState('');
+  const [notificationEnabled, setNotificationEnabled] = useState(true);
+  const [likeNotificationEnabled, setLikeNotificationEnabled] = useState(true);
 
   if (!user) {
     navigate('/login');
@@ -185,83 +187,92 @@ const Profile = () => {
     <div className="page-transition pt-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex flex-col lg:flex-row gap-8">
-          <aside className="lg:w-64 shrink-0">
-            <div className="glass-card p-6 sticky top-24">
-              <div className="flex flex-col items-center mb-8">
-                <div className="relative group">
-                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary-500 to-blue-500 flex items-center justify-center shadow-lg shadow-primary-500/30 mb-4 overflow-hidden">
-                    {user.avatar_url ? (
-                      <img 
-                        src={user.avatar_url} 
-                        alt="头像" 
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-2xl font-bold text-white">
-                        {user.username?.charAt(0).toUpperCase() || user.email.charAt(0).toUpperCase()}
-                      </span>
+          <aside className="lg:w-72 shrink-0">
+            <div className="bg-gradient-to-br from-dark-800 to-dark-900 rounded-2xl border border-dark-600 overflow-hidden sticky top-24 shadow-xl">
+              <div className="bg-gradient-to-r from-primary-600/30 via-accent-600/20 to-blue-600/30 p-6 pb-8">
+                <div className="flex flex-col items-center">
+                  <div className="relative group">
+                    <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary-500 to-blue-600 flex items-center justify-center shadow-xl shadow-primary-500/30 mb-4 overflow-hidden ring-4 ring-dark-800/50">
+                      {user.avatar_url ? (
+                        <img 
+                          src={user.avatar_url} 
+                          alt="头像" 
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-3xl font-bold text-white">
+                          {user.username?.charAt(0).toUpperCase() || user.email.charAt(0).toUpperCase()}
+                        </span>
+                      )}
+                    </div>
+                    {editingProfile && (
+                      <label className="absolute bottom-0 right-0 w-10 h-10 bg-primary-500 rounded-full flex items-center justify-center text-white cursor-pointer hover:bg-primary-600 transition-all shadow-lg hover:scale-110">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+                          <path d="m15 5 4 4"/>
+                        </svg>
+                        <input 
+                          type="file" 
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = (event) => {
+                                setProfileForm({ ...profileForm, avatar_url: event.target?.result as string });
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                          className="hidden"
+                        />
+                      </label>
                     )}
                   </div>
-                  {editingProfile && (
-                    <label className="absolute bottom-0 right-0 w-8 h-8 bg-primary-500 rounded-full flex items-center justify-center text-white cursor-pointer hover:bg-primary-600 transition-colors shadow-lg">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
-                        <path d="m15 5 4 4"/>
-                      </svg>
-                      <input 
-                        type="file" 
-                        accept="image/*"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            const reader = new FileReader();
-                            reader.onload = (event) => {
-                              setProfileForm({ ...profileForm, avatar_url: event.target?.result as string });
-                            };
-                            reader.readAsDataURL(file);
-                          }
-                        }}
-                        className="hidden"
-                      />
-                    </label>
+                  <h3 className="font-bold text-white text-xl">{user.username || '用户'}</h3>
+                  <p className="text-gray-400 text-sm mt-1">{user.email}</p>
+                  {user.bio && (
+                    <p className="text-gray-400 text-sm mt-3 text-center max-w-full truncate">{user.bio}</p>
                   )}
                 </div>
-                <h3 className="font-semibold text-gray-800 dark:text-white">{user.username || '用户'}</h3>
-                <p className="text-gray-500 dark:text-gray-400 text-sm">{user.email}</p>
               </div>
               
-              <nav className="space-y-1">
-                {sidebarItems.map((item) => (
+              <div className="p-4">
+                <nav className="space-y-2">
+                  {sidebarItems.map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => setActiveTab(item.id)}
+                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                        activeTab === item.id
+                          ? 'bg-primary-600/20 text-primary-400 border border-primary-500/40 shadow-lg shadow-primary-500/10'
+                          : 'text-gray-400 hover:text-white hover:bg-dark-700/50 hover:border-dark-600/50'
+                      } border`}
+                    >
+                      <div className={`${activeTab === item.id ? 'text-primary-400' : 'text-gray-500'} transition-colors`}>
+                        {renderIcon(item.icon)}
+                      </div>
+                      <span className="font-medium">{item.label}</span>
+                    </button>
+                  ))}
+                </nav>
+                
+                <div className="mt-6 pt-4 border-t border-dark-600">
                   <button
-                    key={item.id}
-                    onClick={() => setActiveTab(item.id)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                      activeTab === item.id
-                        ? 'bg-primary-500/20 text-primary-400 border border-primary-500/30'
-                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-light-200 dark:hover:bg-dark-700/50'
-                    }`}
+                    onClick={() => {
+                      localStorage.removeItem('auth_token');
+                      navigate('/login');
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all border border-transparent hover:border-red-500/30"
                   >
-                    {renderIcon(item.icon)}
-                    <span>{item.label}</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                      <polyline points="7 10 12 15 17 10"/>
+                      <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    <span className="font-medium">退出登录</span>
                   </button>
-                ))}
-              </nav>
-              
-              <div className="mt-8 pt-6 border-t border-light-200 dark:border-dark-600">
-                <button
-                  onClick={() => {
-                    localStorage.removeItem('auth_token');
-                    navigate('/login');
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-400 hover:bg-red-500/10 transition-all"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                    <polyline points="7 10 12 15 17 10"/>
-                    <line x1="12" y1="15" x2="12" y2="3"/>
-                  </svg>
-                  <span>退出登录</span>
-                </button>
+                </div>
               </div>
             </div>
           </aside>
@@ -269,112 +280,181 @@ const Profile = () => {
           <main className="flex-1">
             {activeTab === 'profile' && (
               <div className="space-y-6">
-                <div className="glass-card p-8">
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="font-orbitron text-2xl font-bold text-gray-800 dark:text-white">个人资料</h2>
-                    <button
-                      onClick={() => setEditingProfile(!editingProfile)}
-                      className="px-4 py-2 bg-primary-500/20 text-primary-400 rounded-xl hover:bg-primary-500/30 transition-all flex items-center gap-2"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
-                        <path d="m15 5 4 4"/>
-                      </svg>
-                      {editingProfile ? '取消编辑' : '编辑资料'}
-                    </button>
+                <div className="bg-gradient-to-br from-dark-700 to-dark-800 rounded-2xl border border-dark-600 shadow-xl overflow-hidden">
+                  <div className="bg-gradient-to-r from-primary-600/40 via-accent-600/30 to-blue-600/40 px-8 py-6">
+                    <div className="flex items-center justify-between">
+                      <h2 className="font-orbitron text-2xl font-bold text-white">个人资料</h2>
+                      <button
+                        onClick={() => setEditingProfile(!editingProfile)}
+                        className="px-5 py-2.5 bg-primary-500/20 text-primary-400 rounded-xl hover:bg-primary-500/30 transition-all flex items-center gap-2 border border-primary-500/30"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+                          <path d="m15 5 4 4"/>
+                        </svg>
+                        {editingProfile ? '取消编辑' : '编辑资料'}
+                      </button>
+                    </div>
                   </div>
                   
-                  {showSuccess && (
-                    <div className="mb-6 p-4 bg-green-500/20 text-green-400 rounded-xl flex items-center gap-2">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"/>
-                      </svg>
-                      资料更新成功！
-                    </div>
-                  )}
-                  
-                  {editingProfile ? (
-                    <form onSubmit={handleUpdateProfile} className="space-y-4">
-                      <div>
-                        <label className="block text-gray-500 dark:text-gray-400 text-sm mb-2">用户名</label>
-                        <input
-                          type="text"
-                          value={profileForm.username}
-                          onChange={(e) => setProfileForm({ ...profileForm, username: e.target.value })}
-                          className="w-full px-4 py-3 bg-light-100/50 border border-light-200 dark:bg-dark-700/50 dark:border-dark-600 rounded-xl text-gray-800 dark:text-white placeholder-gray-500 focus:border-primary-500 focus:outline-none"
-                          placeholder="请输入用户名"
-                        />
+                  <div className="p-8">
+                    {showSuccess && (
+                      <div className="mb-6 p-4 bg-green-500/20 text-green-400 rounded-xl flex items-center gap-2 border border-green-500/30">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        资料更新成功！
                       </div>
-                      <div>
-                        <label className="block text-gray-500 dark:text-gray-400 text-sm mb-2">个人简介</label>
-                        <textarea
-                          value={profileForm.bio}
-                          onChange={(e) => setProfileForm({ ...profileForm, bio: e.target.value })}
-                          className="w-full px-4 py-3 bg-light-100/50 border border-light-200 dark:bg-dark-700/50 dark:border-dark-600 rounded-xl text-gray-800 dark:text-white placeholder-gray-500 focus:border-primary-500 focus:outline-none resize-none"
-                          rows={4}
-                          placeholder="介绍一下你自己..."
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-gray-500 dark:text-gray-400 text-sm mb-2">邮箱</label>
-                        <input
-                          type="email"
-                          value={user.email}
-                          disabled
-                          className="w-full px-4 py-3 bg-light-100/50 border border-light-200 dark:bg-dark-800/50 dark:border-dark-700 rounded-xl text-gray-600 dark:text-gray-500 cursor-not-allowed"
-                        />
-                      </div>
-                      <button
-                        type="submit"
-                        className="w-full py-3 bg-primary-500 text-white rounded-xl hover:bg-primary-600 transition-all font-semibold"
-                      >
-                        保存修改
-                      </button>
-                    </form>
-                  ) : (
-                    <div className="space-y-6">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="glass-card p-4">
-                          <div className="text-gray-500 dark:text-gray-400 text-sm mb-1">用户名</div>
-                          <div className="text-gray-800 dark:text-white font-semibold">{user.username || '未设置'}</div>
+                    )}
+                    
+                    {editingProfile ? (
+                      <form onSubmit={handleUpdateProfile} className="space-y-5">
+                        <div>
+                          <label className="block text-gray-400 text-sm mb-2 font-medium">用户名</label>
+                          <input
+                            type="text"
+                            value={profileForm.username}
+                            onChange={(e) => setProfileForm({ ...profileForm, username: e.target.value })}
+                            className="w-full px-4 py-3 bg-dark-600/50 border border-dark-500 rounded-xl text-white placeholder-gray-500 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500/50 transition-all"
+                            placeholder="请输入用户名"
+                          />
                         </div>
-                        <div className="glass-card p-4">
-                          <div className="text-gray-500 dark:text-gray-400 text-sm mb-1">邮箱</div>
-                          <div className="text-gray-800 dark:text-white font-semibold">{user.email}</div>
+                        <div>
+                          <label className="block text-gray-400 text-sm mb-2 font-medium">个人简介</label>
+                          <textarea
+                            value={profileForm.bio}
+                            onChange={(e) => setProfileForm({ ...profileForm, bio: e.target.value })}
+                            className="w-full px-4 py-3 bg-dark-600/50 border border-dark-500 rounded-xl text-white placeholder-gray-500 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500/50 transition-all resize-none"
+                            rows={4}
+                            placeholder="介绍一下你自己..."
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-gray-400 text-sm mb-2 font-medium">邮箱</label>
+                          <input
+                            type="email"
+                            value={user.email}
+                            disabled
+                            className="w-full px-4 py-3 bg-dark-800/50 border border-dark-700 rounded-xl text-gray-500 cursor-not-allowed"
+                          />
+                        </div>
+                        <button
+                          type="submit"
+                          className="w-full py-3 bg-gradient-to-r from-primary-500 to-accent-500 text-white rounded-xl hover:from-primary-600 hover:to-accent-600 transition-all font-semibold shadow-lg shadow-primary-500/20"
+                        >
+                          保存修改
+                        </button>
+                      </form>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="bg-dark-600/50 border border-dark-500 rounded-xl p-5 hover:border-primary-500/30 transition-all">
+                            <div className="flex items-center gap-3 mb-2">
+                              <div className="w-8 h-8 rounded-lg bg-primary-500/20 flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary-400">
+                                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                  <circle cx="12" cy="7" r="4"/>
+                                </svg>
+                              </div>
+                              <div className="text-gray-400 text-sm font-medium">用户名</div>
+                            </div>
+                            <div className="text-white font-semibold text-lg">{user.username || '未设置'}</div>
+                          </div>
+                          <div className="bg-dark-600/50 border border-dark-500 rounded-xl p-5 hover:border-primary-500/30 transition-all">
+                            <div className="flex items-center gap-3 mb-2">
+                              <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-400">
+                                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                                  <polyline points="22,6 12,13 2,6"/>
+                                </svg>
+                              </div>
+                              <div className="text-gray-400 text-sm font-medium">邮箱</div>
+                            </div>
+                            <div className="text-white font-semibold text-lg">{user.email}</div>
+                          </div>
+                        </div>
+                        <div className="bg-dark-600/50 border border-dark-500 rounded-xl p-5 hover:border-primary-500/30 transition-all">
+                          <div className="flex items-center gap-3 mb-2">
+                            <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-purple-400">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                                <line x1="16" y1="13" x2="8" y2="13"/>
+                                <line x1="16" y1="17" x2="8" y2="17"/>
+                                <polyline points="10 9 9 9 8 9"/>
+                              </svg>
+                            </div>
+                            <div className="text-gray-400 text-sm font-medium">个人简介</div>
+                          </div>
+                          <div className="text-gray-300">{user.bio || '暂无简介'}</div>
+                        </div>
+                        <div className="bg-dark-600/50 border border-dark-500 rounded-xl p-5 hover:border-primary-500/30 transition-all">
+                          <div className="flex items-center gap-3 mb-2">
+                            <div className="w-8 h-8 rounded-lg bg-orange-500/20 flex items-center justify-center">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-orange-400">
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                                <line x1="16" y1="2" x2="16" y2="6"/>
+                                <line x1="8" y1="2" x2="8" y2="6"/>
+                                <line x1="3" y1="10" x2="21" y2="10"/>
+                              </svg>
+                            </div>
+                            <div className="text-gray-400 text-sm font-medium">注册时间</div>
+                          </div>
+                          <div className="text-gray-300">{formatFullDate(user.created_at)}</div>
                         </div>
                       </div>
-                      <div className="glass-card p-4">
-                        <div className="text-gray-500 dark:text-gray-400 text-sm mb-1">个人简介</div>
-                        <div className="text-gray-600 dark:text-gray-300">{user.bio || '暂无简介'}</div>
-                      </div>
-                      <div className="glass-card p-4">
-                        <div className="text-gray-500 dark:text-gray-400 text-sm mb-1">注册时间</div>
-                        <div className="text-gray-600 dark:text-gray-300">{formatFullDate(user.created_at)}</div>
-                      </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
                 
-                <div className="glass-card p-6">
-                  <h3 className="font-semibold text-gray-800 dark:text-white mb-4">数据统计</h3>
+                <div className="bg-dark-700/50 rounded-2xl border border-dark-600 p-6">
+                  <h3 className="font-semibold text-white mb-6 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary-400">
+                      <line x1="12" y1="20" x2="12" y2="10"/>
+                      <line x1="18" y1="20" x2="18" y2="4"/>
+                      <line x1="6" y1="20" x2="6" y2="16"/>
+                    </svg>
+                    数据统计
+                  </h3>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="text-center p-4 bg-light-100/50 dark:bg-dark-700/50 rounded-xl">
-                      <div className="text-3xl font-bold gradient-text mb-1">{favoriteTools.length}</div>
-                      <div className="text-gray-500 dark:text-gray-400 text-sm">收藏工具</div>
+                    <div className="bg-gradient-to-br from-primary-600/20 to-primary-500/10 border border-primary-500/30 rounded-xl p-5 hover:shadow-lg hover:shadow-primary-500/10 transition-all group">
+                      <div className="w-12 h-12 rounded-xl bg-primary-500/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary-400">
+                          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                        </svg>
+                      </div>
+                      <div className="text-3xl font-bold text-white mb-1">{favoriteTools.length}</div>
+                      <div className="text-gray-400 text-sm">收藏工具</div>
                     </div>
-                    <div className="text-center p-4 bg-light-100/50 dark:bg-dark-700/50 rounded-xl">
-                      <div className="text-3xl font-bold gradient-text mb-1">{userComments.length}</div>
-                      <div className="text-gray-500 dark:text-gray-400 text-sm">发表评论</div>
+                    <div className="bg-gradient-to-br from-accent-600/20 to-accent-500/10 border border-accent-500/30 rounded-xl p-5 hover:shadow-lg hover:shadow-accent-500/10 transition-all group">
+                      <div className="w-12 h-12 rounded-xl bg-accent-500/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-accent-400">
+                          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                        </svg>
+                      </div>
+                      <div className="text-3xl font-bold text-white mb-1">{userComments.length}</div>
+                      <div className="text-gray-400 text-sm">发表评论</div>
                     </div>
-                    <div className="text-center p-4 bg-light-100/50 dark:bg-dark-700/50 rounded-xl">
-                      <div className="text-3xl font-bold gradient-text mb-1">{userViews.length}</div>
-                      <div className="text-gray-500 dark:text-gray-400 text-sm">浏览历史</div>
+                    <div className="bg-gradient-to-br from-blue-600/20 to-blue-500/10 border border-blue-500/30 rounded-xl p-5 hover:shadow-lg hover:shadow-blue-500/10 transition-all group">
+                      <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-400">
+                          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                          <path d="M3 3v5h5"/>
+                        </svg>
+                      </div>
+                      <div className="text-3xl font-bold text-white mb-1">{userViews.length}</div>
+                      <div className="text-gray-400 text-sm">浏览历史</div>
                     </div>
-                    <div className="text-center p-4 bg-light-100/50 dark:bg-dark-700/50 rounded-xl">
-                      <div className="text-3xl font-bold gradient-text mb-1">
+                    <div className="bg-gradient-to-br from-purple-600/20 to-purple-500/10 border border-purple-500/30 rounded-xl p-5 hover:shadow-lg hover:shadow-purple-500/10 transition-all group">
+                      <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-purple-400">
+                          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                        </svg>
+                      </div>
+                      <div className="text-3xl font-bold text-white mb-1">
                         {userComments.reduce((sum, c) => sum + (c.likes || 0), 0)}
                       </div>
-                      <div className="text-gray-500 dark:text-gray-400 text-sm">获得点赞</div>
+                      <div className="text-gray-400 text-sm">获得点赞</div>
                     </div>
                   </div>
                 </div>
@@ -382,206 +462,226 @@ const Profile = () => {
             )}
             
             {activeTab === 'favorites' && (
-              <div className="glass-card p-8">
-                <h2 className="font-orbitron text-2xl font-bold text-gray-800 dark:text-white mb-6">我的收藏</h2>
+              <div className="bg-dark-700/50 rounded-2xl border border-dark-600 shadow-xl overflow-hidden">
+                <div className="bg-gradient-to-r from-primary-600/30 to-accent-600/20 px-8 py-6 border-b border-dark-600">
+                  <h2 className="font-orbitron text-2xl font-bold text-white">我的收藏</h2>
+                  <p className="text-gray-400 text-sm mt-1">已收藏 {favoriteTools.length} 个工具</p>
+                </div>
                 
-                {favoriteTools.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {favoriteTools.map((tool) => (
-                      <Link
-                        key={tool.id}
-                        to={`/tool/${tool.id}`}
-                        className="group rounded-2xl p-6 bg-light-100/50 border border-light-200 dark:bg-dark-700/50 dark:border-dark-600 card-hover"
-                      >
-                        <div className="w-12 h-12 rounded-xl bg-primary-500/20 flex items-center justify-center mb-4 group-hover:bg-primary-500/30 transition-colors">
-                          <div 
-                            dangerouslySetInnerHTML={{ __html: tool.icon }} 
-                            className="w-8 h-8 text-primary-400"
-                          />
-                        </div>
-                        <h3 className="text-gray-800 dark:text-white font-semibold mb-2 group-hover:text-primary-400 transition-colors">
-                          {tool.name}
-                        </h3>
-                        <p className="text-gray-500 dark:text-gray-400 text-sm line-clamp-2">{tool.description}</p>
-                        <div className="mt-4 flex items-center gap-4 text-gray-500 dark:text-gray-500 text-xs">
-                          <span>{tool.category}</span>
-                          <span>浏览 {tool.views_count}</span>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <div className="w-16 h-16 rounded-full bg-light-100/50 dark:bg-dark-700/50 flex items-center justify-center mx-auto mb-4">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400">
-                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-                      </svg>
+                <div className="p-8">
+                  {favoriteTools.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                      {favoriteTools.map((tool) => (
+                        <Link
+                          key={tool.id}
+                          to={`/tool/${tool.id}`}
+                          className="group bg-dark-600/50 border border-dark-500 rounded-xl p-5 hover:border-primary-500/40 hover:shadow-lg hover:shadow-primary-500/10 transition-all"
+                        >
+                          <div className="w-12 h-12 rounded-xl bg-primary-500/20 flex items-center justify-center mb-4 group-hover:bg-primary-500/30 group-hover:scale-110 transition-all">
+                            <div 
+                              dangerouslySetInnerHTML={{ __html: tool.icon }} 
+                              className="w-7 h-7 text-primary-400"
+                            />
+                          </div>
+                          <h3 className="text-white font-semibold mb-2 group-hover:text-primary-400 transition-colors">
+                            {tool.name}
+                          </h3>
+                          <p className="text-gray-400 text-sm line-clamp-2">{tool.description}</p>
+                          <div className="mt-4 flex items-center gap-4 text-gray-500 text-xs">
+                            <span className="px-2 py-1 bg-dark-500/50 rounded-full">{tool.category}</span>
+                            <span>浏览 {tool.views_count}</span>
+                          </div>
+                        </Link>
+                      ))}
                     </div>
-                    <h3 className="text-gray-800 dark:text-white font-semibold mb-2">暂无收藏</h3>
-                    <p className="text-gray-500 dark:text-gray-400 mb-4">快去收藏您喜欢的工具吧！</p>
-                    <Link to="/" className="btn-primary inline-block">
-                      浏览工具
-                    </Link>
-                  </div>
-                )}
+                  ) : (
+                    <div className="text-center py-16">
+                      <div className="w-20 h-20 rounded-full bg-dark-600/50 flex items-center justify-center mx-auto mb-6">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500">
+                          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                        </svg>
+                      </div>
+                      <h3 className="text-white font-semibold text-lg mb-2">暂无收藏</h3>
+                      <p className="text-gray-400 mb-6">快去收藏您喜欢的工具吧！</p>
+                      <Link to="/" className="px-6 py-3 bg-gradient-to-r from-primary-500 to-accent-500 text-white rounded-xl hover:from-primary-600 hover:to-accent-600 transition-all font-semibold shadow-lg shadow-primary-500/20">
+                        浏览工具
+                      </Link>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
             
             {activeTab === 'history' && (
-              <div className="glass-card p-8">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="font-orbitron text-2xl font-bold text-gray-800 dark:text-white">浏览历史</h2>
-                  {userViews.length > 0 && (
-                    <button
-                      onClick={handleClearHistory}
-                      className="px-4 py-2 text-red-500 dark:text-red-400 hover:bg-red-500/10 rounded-xl transition-all text-sm flex items-center gap-2"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M3 6h18"/>
-                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
-                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
-                      </svg>
-                      清空历史
-                    </button>
-                  )}
+              <div className="bg-dark-700/50 rounded-2xl border border-dark-600 shadow-xl overflow-hidden">
+                <div className="bg-gradient-to-r from-blue-600/30 to-cyan-600/20 px-8 py-6 border-b border-dark-600">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="font-orbitron text-2xl font-bold text-white">浏览历史</h2>
+                      <p className="text-gray-400 text-sm mt-1">最近浏览的 {userViews.length} 个工具</p>
+                    </div>
+                    {userViews.length > 0 && (
+                      <button
+                        onClick={handleClearHistory}
+                        className="px-4 py-2 text-red-400 hover:bg-red-500/10 rounded-xl transition-all text-sm flex items-center gap-2 border border-red-500/30 hover:border-red-500/50"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M3 6h18"/>
+                          <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+                          <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+                        </svg>
+                        清空历史
+                      </button>
+                    )}
+                  </div>
                 </div>
                 
-                {userViews.length > 0 ? (
-                  <div className="space-y-3">
-                    {userViews.map((view) => (
-                      <div
-                        key={view.id}
-                        className="flex items-center gap-4 p-4 bg-light-100/50 border border-light-200 dark:bg-dark-700/50 dark:border-dark-600 rounded-xl hover:border-light-300 dark:hover:border-dark-500 transition-all group"
-                      >
-                        <Link to={`/tool/${view.tool_id}`} className="flex-shrink-0">
-                          <div className="w-12 h-12 rounded-xl bg-primary-500/20 flex items-center justify-center">
-                            <div 
-                              dangerouslySetInnerHTML={{ __html: view.icon }} 
-                              className="w-6 h-6 text-primary-400"
-                            />
-                          </div>
-                        </Link>
-                        <div className="flex-1 min-w-0">
-                          <Link to={`/tool/${view.tool_id}`} className="text-gray-800 dark:text-white font-semibold hover:text-primary-400 transition-colors">
-                            {view.name}
-                          </Link>
-                          <p className="text-gray-500 dark:text-gray-500 text-sm truncate">{view.description}</p>
-                          <div className="flex items-center gap-4 mt-1">
-                            <span className="text-gray-500 dark:text-gray-500 text-xs">{view.category}</span>
-                            <span className="text-gray-500 dark:text-gray-500 text-xs">
-                              {formatDateTime(view.created_at)}
-                            </span>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => handleDeleteView(view.id)}
-                          className="opacity-0 group-hover:opacity-100 p-2 text-gray-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                <div className="p-8">
+                  {userViews.length > 0 ? (
+                    <div className="space-y-3">
+                      {userViews.map((view) => (
+                        <div
+                          key={view.id}
+                          className="flex items-center gap-4 p-4 bg-dark-600/50 border border-dark-500 rounded-xl hover:border-blue-500/40 hover:shadow-lg hover:shadow-blue-500/10 transition-all group"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M3 6h18"/>
-                            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
-                            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
-                          </svg>
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <div className="w-16 h-16 rounded-full bg-light-100/50 dark:bg-dark-700/50 flex items-center justify-center mx-auto mb-4">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400">
-                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-                        <path d="M3 3v5h5"/>
-                      </svg>
+                          <Link to={`/tool/${view.tool_id}`} className="flex-shrink-0">
+                            <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                              <div 
+                                dangerouslySetInnerHTML={{ __html: view.icon }} 
+                                className="w-6 h-6 text-blue-400"
+                              />
+                            </div>
+                          </Link>
+                          <div className="flex-1 min-w-0">
+                            <Link to={`/tool/${view.tool_id}`} className="text-white font-semibold hover:text-blue-400 transition-colors">
+                              {view.name}
+                            </Link>
+                            <p className="text-gray-400 text-sm truncate">{view.description}</p>
+                            <div className="flex items-center gap-4 mt-1">
+                              <span className="text-gray-500 text-xs px-2 py-0.5 bg-dark-500/50 rounded-full">{view.category}</span>
+                              <span className="text-gray-500 text-xs">
+                                {formatDateTime(view.created_at)}
+                              </span>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleDeleteView(view.id)}
+                            className="opacity-0 group-hover:opacity-100 p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M3 6h18"/>
+                              <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+                              <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                    <h3 className="text-gray-800 dark:text-white font-semibold mb-2">暂无浏览记录</h3>
-                    <p className="text-gray-500 dark:text-gray-400 mb-4">浏览工具后会在这里显示历史记录</p>
-                    <Link to="/" className="btn-primary inline-block">
-                      浏览工具
-                    </Link>
-                  </div>
-                )}
+                  ) : (
+                    <div className="text-center py-16">
+                      <div className="w-20 h-20 rounded-full bg-dark-600/50 flex items-center justify-center mx-auto mb-6">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500">
+                          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                          <path d="M3 3v5h5"/>
+                        </svg>
+                      </div>
+                      <h3 className="text-white font-semibold text-lg mb-2">暂无浏览记录</h3>
+                      <p className="text-gray-400 mb-6">浏览工具后会在这里显示历史记录</p>
+                      <Link to="/" className="px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-xl hover:from-blue-600 hover:to-cyan-600 transition-all font-semibold shadow-lg shadow-blue-500/20">
+                        浏览工具
+                      </Link>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
             
             {activeTab === 'comments' && (
-              <div className="glass-card p-8">
-                <h2 className="font-orbitron text-2xl font-bold text-gray-800 dark:text-white mb-6">我的评论</h2>
+              <div className="bg-dark-700/50 rounded-2xl border border-dark-600 shadow-xl overflow-hidden">
+                <div className="bg-gradient-to-r from-accent-600/30 to-orange-600/20 px-8 py-6 border-b border-dark-600">
+                  <h2 className="font-orbitron text-2xl font-bold text-white">我的评论</h2>
+                  <p className="text-gray-400 text-sm mt-1">已发表 {userComments.length} 条评论</p>
+                </div>
                 
-                {userComments.length > 0 ? (
-                  <div className="space-y-4">
-                    {userComments.map((comment) => (
-                      <div key={comment.id} className="p-6 bg-light-100/50 border border-light-200 dark:bg-dark-700/50 dark:border-dark-600 rounded-xl">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-4 mb-3">
-                              <Link to={`/tool/${comment.tool_id}`} className="text-primary-500 dark:text-primary-400 hover:text-primary-600 dark:hover:text-primary-300 font-semibold">
-                                {comment.tool_name || '工具'}
-                              </Link>
-                              <span className="text-gray-400">|</span>
-                              <span className="text-gray-500 dark:text-gray-500 text-sm">
-                                {formatFullDate(comment.created_at)}
-                              </span>
-                            </div>
-                            <p className="text-gray-700 dark:text-gray-300 mb-3">{comment.content}</p>
-                            <div className="flex items-center gap-4">
-                              <div className="flex items-center gap-1">
-                                {[...Array(5)].map((_, i) => (
-                                  <span key={i} className="text-sm">
-                                    {i < (comment.rating || 5) ? '⭐' : '☆'}
-                                  </span>
-                                ))}
+                <div className="p-8">
+                  {userComments.length > 0 ? (
+                    <div className="space-y-4">
+                      {userComments.map((comment) => (
+                        <div key={comment.id} className="p-6 bg-dark-600/50 border border-dark-500 rounded-xl hover:border-accent-500/40 hover:shadow-lg hover:shadow-accent-500/10 transition-all">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-4 mb-3">
+                                <Link to={`/tool/${comment.tool_id}`} className="text-accent-400 hover:text-accent-300 font-semibold">
+                                  {comment.tool_name || '工具'}
+                                </Link>
+                                <span className="text-gray-600">|</span>
+                                <span className="text-gray-500 text-sm">
+                                  {formatFullDate(comment.created_at)}
+                                </span>
                               </div>
-                              <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-                                </svg>
-                                <span>{comment.likes || 0}</span>
+                              <p className="text-gray-300 mb-3">{comment.content}</p>
+                              <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-1">
+                                  {[...Array(5)].map((_, i) => (
+                                    <span key={i} className="text-sm">
+                                      {i < (comment.rating || 5) ? '⭐' : '☆'}
+                                    </span>
+                                  ))}
+                                </div>
+                                <div className="flex items-center gap-2 text-gray-400">
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                                  </svg>
+                                  <span>{comment.likes || 0}</span>
+                                </div>
                               </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <div className="w-16 h-16 rounded-full bg-light-100/50 dark:bg-dark-700/50 flex items-center justify-center mx-auto mb-4">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400">
-                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                      </svg>
+                      ))}
                     </div>
-                    <h3 className="text-gray-800 dark:text-white font-semibold mb-2">暂无评论</h3>
-                    <p className="text-gray-500 dark:text-gray-400 mb-4">去工具页面发表您的评论吧！</p>
-                    <Link to="/" className="btn-primary inline-block">
-                      浏览工具
-                    </Link>
-                  </div>
-                )}
+                  ) : (
+                    <div className="text-center py-16">
+                      <div className="w-20 h-20 rounded-full bg-dark-600/50 flex items-center justify-center mx-auto mb-6">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500">
+                          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                        </svg>
+                      </div>
+                      <h3 className="text-white font-semibold text-lg mb-2">暂无评论</h3>
+                      <p className="text-gray-400 mb-6">去工具页面发表您的评论吧！</p>
+                      <Link to="/" className="px-6 py-3 bg-gradient-to-r from-accent-500 to-orange-500 text-white rounded-xl hover:from-accent-600 hover:to-orange-600 transition-all font-semibold shadow-lg shadow-accent-500/20">
+                        浏览工具
+                      </Link>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
             
             {activeTab === 'settings' && (
-              <div className="glass-card p-8">
-                <h2 className="font-orbitron text-2xl font-bold text-gray-800 dark:text-white mb-6">账号设置</h2>
+              <div className="bg-dark-700/50 rounded-2xl border border-dark-600 shadow-xl overflow-hidden">
+                <div className="bg-gradient-to-r from-purple-600/30 to-pink-600/20 px-8 py-6 border-b border-dark-600">
+                  <h2 className="font-orbitron text-2xl font-bold text-white">账号设置</h2>
+                  <p className="text-gray-400 text-sm mt-1">管理您的账号配置和偏好设置</p>
+                </div>
                 
-                <div className="space-y-6">
-                  <div className="glass-card p-6">
-                    <h3 className="font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <div className="p-8 space-y-6">
+                  <div className="bg-dark-600/50 border border-dark-500 rounded-xl p-6">
+                    <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-purple-400">
                         <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
                       </svg>
                       外观设置
                     </h3>
                     <div className="flex items-center justify-between">
                       <div>
-                        <div className="text-gray-700 dark:text-gray-300">主题模式</div>
+                        <div className="text-gray-300 font-medium">主题模式</div>
                         <div className="text-gray-500 text-sm">选择深色或浅色主题</div>
                       </div>
                       <select
                         value={themePreference}
                         onChange={handleThemeChange}
-                        className="px-4 py-2 bg-light-100/50 border border-light-200 dark:bg-dark-700/50 dark:border-dark-600 rounded-xl text-gray-800 dark:text-white focus:border-primary-500 focus:outline-none"
+                        className="px-4 py-2.5 bg-dark-500/50 border border-dark-500 rounded-xl text-white focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500/50 transition-all"
                       >
                         <option value="dark">深色模式</option>
                         <option value="light">浅色模式</option>
@@ -589,40 +689,40 @@ const Profile = () => {
                     </div>
                   </div>
                   
-                  <div className="glass-card p-6">
-                    <h3 className="font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <div className="bg-dark-600/50 border border-dark-500 rounded-xl p-6">
+                    <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-400">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                         <polyline points="7 10 12 15 17 10"/>
                         <line x1="12" y1="15" x2="12" y2="3"/>
                       </svg>
                       账号安全
                     </h3>
-                    <div className="space-y-4">
-                      <button onClick={() => setShowPasswordModal(true)} className="w-full flex items-center justify-between p-4 bg-light-100/50 border border-light-200 dark:bg-dark-700/50 dark:border-dark-600 rounded-xl hover:border-light-300 dark:hover:border-dark-500 transition-all group">
+                    <div className="space-y-3">
+                      <button onClick={() => setShowPasswordModal(true)} className="w-full flex items-center justify-between p-4 bg-dark-500/50 border border-dark-500 rounded-xl hover:border-blue-500/40 hover:shadow-lg hover:shadow-blue-500/10 transition-all group">
                         <div className="text-left">
-                          <div className="text-gray-700 dark:text-gray-300">修改密码</div>
+                          <div className="text-gray-300 font-medium">修改密码</div>
                           <div className="text-gray-500 text-sm">定期更换密码以保护账号安全</div>
                         </div>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500 group-hover:text-primary-500 dark:group-hover:text-primary-400 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500 group-hover:text-blue-400 transition-colors">
                           <path d="m9 18 6-6-6-6"/>
                         </svg>
                       </button>
-                      <button className="w-full flex items-center justify-between p-4 bg-light-100/50 border border-light-200 dark:bg-dark-700/50 dark:border-dark-600 rounded-xl hover:border-light-300 dark:hover:border-dark-500 transition-all group">
+                      <button className="w-full flex items-center justify-between p-4 bg-dark-500/50 border border-dark-500 rounded-xl hover:border-blue-500/40 transition-all group">
                         <div className="text-left">
-                          <div className="text-gray-700 dark:text-gray-300">绑定邮箱</div>
+                          <div className="text-gray-300 font-medium">绑定邮箱</div>
                           <div className="text-gray-500 text-sm">{user.email}</div>
                         </div>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-500 dark:text-green-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-400">
                           <polyline points="20 6 9 17 4 12"/>
                         </svg>
                       </button>
                     </div>
                   </div>
                   
-                  <div className="glass-card p-6">
-                    <h3 className="font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <div className="bg-dark-600/50 border border-dark-500 rounded-xl p-6">
+                    <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-400">
                         <circle cx="12" cy="12" r="10"/>
                         <circle cx="12" cy="12" r="4"/>
                         <line x1="12" y1="16" x2="12.01" y2="16"/>
@@ -630,29 +730,35 @@ const Profile = () => {
                       通知设置
                     </h3>
                     <div className="space-y-4">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between p-4 bg-dark-500/30 rounded-xl">
                         <div>
-                          <div className="text-gray-700 dark:text-gray-300">评论回复通知</div>
+                          <div className="text-gray-300 font-medium">评论回复通知</div>
                           <div className="text-gray-500 text-sm">当有人回复您的评论时发送通知</div>
                         </div>
-                        <button className="w-12 h-6 bg-green-500 rounded-full relative">
-                          <div className="w-5 h-5 bg-white rounded-full absolute right-0.5 top-0.5 transition-all"></div>
+                        <button 
+                          onClick={() => setNotificationEnabled(!notificationEnabled)}
+                          className={`w-14 h-7 rounded-full relative transition-all ${notificationEnabled ? 'bg-green-500' : 'bg-dark-500'}`}
+                        >
+                          <div className={`w-6 h-6 bg-white rounded-full absolute top-0.5 transition-all ${notificationEnabled ? 'right-0.5' : 'left-0.5'}`}></div>
                         </button>
                       </div>
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between p-4 bg-dark-500/30 rounded-xl">
                         <div>
-                          <div className="text-gray-700 dark:text-gray-300">点赞通知</div>
+                          <div className="text-gray-300 font-medium">点赞通知</div>
                           <div className="text-gray-500 text-sm">当有人点赞您的评论时发送通知</div>
                         </div>
-                        <button className="w-12 h-6 bg-green-500 rounded-full relative">
-                          <div className="w-5 h-5 bg-white rounded-full absolute right-0.5 top-0.5 transition-all"></div>
+                        <button 
+                          onClick={() => setLikeNotificationEnabled(!likeNotificationEnabled)}
+                          className={`w-14 h-7 rounded-full relative transition-all ${likeNotificationEnabled ? 'bg-green-500' : 'bg-dark-500'}`}
+                        >
+                          <div className={`w-6 h-6 bg-white rounded-full absolute top-0.5 transition-all ${likeNotificationEnabled ? 'right-0.5' : 'left-0.5'}`}></div>
                         </button>
                       </div>
                     </div>
                   </div>
                   
-                  <div className="glass-card p-6 bg-red-500/10 border-red-500/30">
-                    <h3 className="font-semibold text-red-500 dark:text-red-400 mb-4 flex items-center gap-2">
+                  <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-6">
+                    <h3 className="font-semibold text-red-400 mb-4 flex items-center gap-2">
                       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M3 6h18"/>
                         <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
@@ -660,7 +766,7 @@ const Profile = () => {
                       </svg>
                       危险操作
                     </h3>
-                    <button className="w-full py-3 border border-red-500/50 text-red-500 dark:text-red-400 rounded-xl hover:bg-red-500/10 transition-all">
+                    <button className="w-full py-3 border border-red-500/50 text-red-400 rounded-xl hover:bg-red-500/10 hover:border-red-500/70 transition-all font-medium">
                       删除账号
                     </button>
                   </div>
