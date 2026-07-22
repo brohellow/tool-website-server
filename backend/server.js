@@ -9,8 +9,18 @@ const path = require('path');
 const http = require('http');
 const { Server } = require('socket.io');
 const nodemailer = require('nodemailer');
+const fs = require('fs');
 const { db, initDatabase } = require('./memoryDb');
 const { GameEngine } = require('./gameEngine');
+
+const logFile = path.join(__dirname, '../logs/server.log');
+
+const log = (message) => {
+  const timestamp = new Date().toISOString();
+  const logLine = `[${timestamp}] ${message}\n`;
+  console.log(message);
+  fs.appendFileSync(logFile, logLine);
+};
 
 const app = express();
 const server = http.createServer(app);
@@ -30,6 +40,8 @@ const gameEngine = new GameEngine();
 const socketRoomMap = new Map();
 
 const verificationCodes = new Map();
+
+log(`SMTP配置: host=${process.env.SMTP_HOST}, port=${process.env.SMTP_PORT}, secure=${process.env.SMTP_SECURE}, user=${process.env.SMTP_USER ? '已配置' : '未配置'}, pass=${process.env.SMTP_PASS ? '已配置' : '未配置'}`);
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.qq.com',
@@ -65,15 +77,15 @@ const sendVerificationEmail = async (email, code) => {
     text: `您好！感谢您注册工具乐园，您的验证码是：${code}。验证码有效期为5分钟，请尽快使用。`,
   };
 
-  console.log(`[邮件发送] 目标邮箱: ${email}`);
+  log(`[邮件发送] 目标邮箱: ${email}`);
   
   try {
     const info = await transporter.sendMail(mailOptions);
-    console.log(`[邮件发送成功] Message ID: ${info.messageId}`);
+    log(`[邮件发送成功] Message ID: ${info.messageId}`);
   } catch (error) {
-    console.error(`[邮件发送失败] 错误信息: ${error.message}`);
+    log(`[邮件发送失败] 错误信息: ${error.message}`);
     if (error.response) {
-      console.error(`[邮件发送失败] 服务器响应: ${error.response}`);
+      log(`[邮件发送失败] 服务器响应: ${error.response}`);
     }
     throw error;
   }
@@ -710,6 +722,19 @@ app.get('/healthz', (req, res) => {
 
 app.get('/api/version', (req, res) => {
   res.json({ version: '2.0.0', apiUrl: '/api', timestamp: new Date().toISOString() });
+});
+
+app.get('/api/logs', (req, res) => {
+  try {
+    if (fs.existsSync(logFile)) {
+      const content = fs.readFileSync(logFile, 'utf8');
+      res.json({ logs: content.split('\n').filter(line => line.trim()) });
+    } else {
+      res.json({ logs: ['日志文件不存在'] });
+    }
+  } catch (error) {
+    res.status(500).json({ error: '读取日志失败' });
+  }
 });
 
 app.get('/', (req, res) => {
