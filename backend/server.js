@@ -55,7 +55,7 @@ log(`SMTP配置: host=${process.env.SMTP_HOST}, port=${process.env.SMTP_PORT}, s
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.qq.com',
   port: parseInt(process.env.SMTP_PORT || '465'),
-  secure: process.env.SMTP_SECURE === 'false' ? false : true,
+  secure: process.env.SMTP_SECURE !== 'false',
   auth: {
     user: process.env.SMTP_USER || '',
     pass: process.env.SMTP_PASS || '',
