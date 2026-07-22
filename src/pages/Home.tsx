@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useStore } from '../store/useStore';
-import { icons } from '../data/tools';
+import { icons } from '../assets/icons';
 import { getTools, getFeaturedTools, getCategories, searchTools } from '../utils/api';
 import ToolCard from '../components/ToolCard';
 import { Tool, Category } from '../types';

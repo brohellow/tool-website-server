@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { icons } from '../data/tools';
+import { icons } from '../assets/icons';
 import { getToolsByCategory, getCategories } from '../utils/api';
 import ToolCard from '../components/ToolCard';
 import { Tool, Category } from '../types';
