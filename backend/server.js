@@ -47,6 +47,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-here-change-in-pro
 
 const gameEngine = new GameEngine();
 const socketRoomMap = new Map();
+const userIdSocketMap = new Map();
 
 const verificationCodes = new Map();
 
@@ -733,6 +734,138 @@ app.get('/api/version', (req, res) => {
   res.json({ version: '2.0.0', apiUrl: '/api', timestamp: new Date().toISOString() });
 });
 
+app.get('/api/users', authenticateToken, (req, res) => {
+  try {
+    const users = db.prepare('SELECT id, username, avatar_url FROM users').all();
+    res.json(users);
+  } catch (error) {
+    console.error('获取用户列表失败:', error);
+    res.status(500).json({ error: '获取用户列表失败' });
+  }
+});
+
+app.get('/api/private-chat/messages/:receiverId', authenticateToken, (req, res) => {
+  const { receiverId } = req.params;
+  
+  try {
+    const messages = db.prepare(`
+      SELECT private_messages.id, private_messages.sender_id, private_messages.receiver_id, 
+             private_messages.content, private_messages.created_at,
+             users.username, users.avatar_url
+      FROM private_messages
+      JOIN users ON private_messages.sender_id = users.id
+      WHERE (private_messages.sender_id = ? AND private_messages.receiver_id = ?)
+         OR (private_messages.sender_id = ? AND private_messages.receiver_id = ?)
+      ORDER BY private_messages.created_at DESC
+      LIMIT 100
+    `).all(req.user.id, receiverId, receiverId, req.user.id);
+    
+    const result = messages.map(m => ({
+      id: m.id,
+      sender_id: m.sender_id,
+      receiver_id: m.receiver_id,
+      content: m.content,
+      created_at: m.created_at,
+      user: {
+        id: m.sender_id,
+        username: m.username,
+        avatar_url: m.avatar_url
+      }
+    }));
+    
+    res.json(result.reverse());
+  } catch (error) {
+    console.error('获取私聊消息失败:', error);
+    res.status(500).json({ error: '获取私聊消息失败' });
+  }
+});
+
+app.post('/api/private-chat/messages', authenticateToken, (req, res) => {
+  const { receiverId, content } = req.body;
+  
+  if (!receiverId || !content || content.trim() === '') {
+    return res.status(400).json({ error: '消息内容和接收者不能为空' });
+  }
+
+  try {
+    const messageId = uuidv4();
+    const createdAt = new Date().toISOString();
+    
+    db.prepare(
+      'INSERT INTO private_messages (id, sender_id, receiver_id, content, created_at) VALUES (?, ?, ?, ?, ?)'
+    ).run(messageId, req.user.id, receiverId, content.trim(), createdAt);
+
+    const message = db.prepare(`
+      SELECT private_messages.id, private_messages.sender_id, private_messages.receiver_id, 
+             private_messages.content, private_messages.created_at,
+             users.username, users.avatar_url
+      FROM private_messages
+      JOIN users ON private_messages.sender_id = users.id
+      WHERE private_messages.id = ?
+    `).get(messageId);
+
+    const senderUser = db.prepare('SELECT id, username, avatar_url FROM users WHERE id = ?').get(req.user.id);
+    
+    const messageWithUser = {
+      id: message.id,
+      sender_id: message.sender_id,
+      receiver_id: message.receiver_id,
+      content: message.content,
+      created_at: message.created_at,
+      user: {
+        id: message.sender_id,
+        username: message.username,
+        avatar_url: message.avatar_url
+      }
+    };
+
+    const receiverSocketId = userIdSocketMap.get(receiverId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit('private message', messageWithUser);
+    }
+
+    res.json(messageWithUser);
+  } catch (error) {
+    console.error('发送私聊消息失败:', error);
+    res.status(500).json({ error: '发送私聊消息失败' });
+  }
+});
+
+app.get('/api/private-chat/conversations', authenticateToken, (req, res) => {
+  try {
+    const messages = db.prepare(`
+      SELECT private_messages.sender_id, private_messages.receiver_id, 
+             private_messages.content, private_messages.created_at,
+             users.username, users.avatar_url
+      FROM private_messages
+      JOIN users ON (private_messages.sender_id = users.id AND private_messages.receiver_id = ?)
+                 OR (private_messages.receiver_id = users.id AND private_messages.sender_id = ?)
+      WHERE private_messages.sender_id = ? OR private_messages.receiver_id = ?
+      ORDER BY private_messages.created_at DESC
+    `).all(req.user.id, req.user.id, req.user.id, req.user.id);
+    
+    const conversations = new Map();
+    
+    messages.forEach(m => {
+      const otherUserId = m.sender_id === req.user.id ? m.receiver_id : m.sender_id;
+      if (!conversations.has(otherUserId)) {
+        conversations.set(otherUserId, {
+          user_id: otherUserId,
+          username: m.username,
+          avatar_url: m.avatar_url,
+          last_message: m.content,
+          last_message_at: m.created_at
+        });
+      }
+    });
+    
+    res.json(Array.from(conversations.values()));
+  } catch (error) {
+    console.error('获取会话列表失败:', error);
+    res.status(500).json({ error: '获取会话列表失败' });
+  }
+});
+
 app.get('/api/chat/messages', authenticateToken, (req, res) => {
   try {
     const messages = db.prepare(`
@@ -744,7 +877,19 @@ app.get('/api/chat/messages', authenticateToken, (req, res) => {
       LIMIT 100
     `).all();
     
-    res.json(messages.reverse());
+    const result = messages.map(m => ({
+      id: m.id,
+      user_id: m.user_id,
+      content: m.content,
+      created_at: m.created_at,
+      user: {
+        id: m.user_id,
+        username: m.username,
+        avatar_url: m.avatar_url
+      }
+    }));
+    
+    res.json(result.reverse());
   } catch (error) {
     console.error('获取聊天消息失败:', error);
     res.status(500).json({ error: '获取聊天消息失败' });
@@ -774,9 +919,21 @@ app.post('/api/chat/messages', authenticateToken, (req, res) => {
       WHERE chat_messages.id = ?
     `).get(messageId);
 
-    io.emit('chat message', message);
+    const messageWithUser = {
+      id: message.id,
+      user_id: message.user_id,
+      content: message.content,
+      created_at: message.created_at,
+      user: {
+        id: message.user_id,
+        username: message.username,
+        avatar_url: message.avatar_url
+      }
+    };
 
-    res.json(message);
+    io.emit('chat message', messageWithUser);
+
+    res.json(messageWithUser);
   } catch (error) {
     console.error('发送消息失败:', error);
     res.status(500).json({ error: '发送消息失败' });
@@ -799,8 +956,29 @@ if (isProduction) {
   });
 }
 
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token;
+  if (token) {
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+      if (err) {
+        return next(new Error('无效的令牌'));
+      }
+      socket.user = user;
+      next();
+    });
+  } else {
+    socket.user = null;
+    next();
+  }
+});
+
 io.on('connection', (socket) => {
-  console.log('客户端连接:', socket.id);
+  if (socket.user) {
+    userIdSocketMap.set(socket.user.id, socket.id);
+    console.log(`用户连接: ${socket.user.id}, socketId: ${socket.id}`);
+  } else {
+    console.log('匿名客户端连接:', socket.id);
+  }
 
   socket.on('join-room', ({ roomId, playerId, username }) => {
     socket.join(roomId);
@@ -906,6 +1084,9 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     console.log('客户端断开连接:', socket.id);
+    if (socket.user) {
+      userIdSocketMap.delete(socket.user.id);
+    }
     const roomId = socketRoomMap.get(socket.id);
     if (roomId) {
       gameEngine.setOffline(roomId, socket.id);

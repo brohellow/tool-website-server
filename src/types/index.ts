@@ -100,3 +100,22 @@ export interface ChatMessage {
   created_at: string;       // 消息创建时间
   user?: User;              // 用户信息（可选，用于关联查询）
 }
+
+// 私聊消息类型定义
+export interface PrivateMessage {
+  id: string;               // 消息唯一标识
+  sender_id: string;        // 发送者用户 ID
+  receiver_id: string;      // 接收者用户 ID
+  content: string;          // 消息内容
+  created_at: string;       // 消息创建时间
+  user?: User;              // 用户信息（可选，用于关联查询）
+}
+
+// 会话类型定义
+export interface Conversation {
+  user_id: string;          // 对方用户 ID
+  username: string;         // 对方用户名
+  avatar_url?: string;      // 对方头像 URL
+  last_message: string;     // 最后一条消息内容
+  last_message_at: string;  // 最后一条消息时间
+}

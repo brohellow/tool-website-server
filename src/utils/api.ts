@@ -406,3 +406,75 @@ export const sendChatMessage = async (content: string): Promise<ChatMessage> => 
   
   return data;
 };
+
+export interface PrivateMessage {
+  id: string;
+  sender_id: string;
+  receiver_id: string;
+  content: string;
+  created_at: string;
+  user?: User;
+}
+
+export interface Conversation {
+  user_id: string;
+  username: string;
+  avatar_url?: string;
+  last_message: string;
+  last_message_at: string;
+}
+
+export const getUsers = async (): Promise<User[]> => {
+  const response = await fetch(`${API_BASE_URL}/api/users`, {
+    method: 'GET',
+    headers: getHeaders(),
+  });
+  
+  if (!response.ok) {
+    throw new Error('获取用户列表失败');
+  }
+  
+  return await response.json();
+};
+
+export const getPrivateMessages = async (receiverId: string): Promise<PrivateMessage[]> => {
+  const response = await fetch(`${API_BASE_URL}/api/private-chat/messages/${receiverId}`, {
+    method: 'GET',
+    headers: getHeaders(),
+  });
+  
+  if (!response.ok) {
+    throw new Error('获取私聊消息失败');
+  }
+  
+  return await response.json();
+};
+
+export const sendPrivateMessage = async (receiverId: string, content: string): Promise<PrivateMessage> => {
+  const response = await fetch(`${API_BASE_URL}/api/private-chat/messages`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({ receiverId, content }),
+  });
+  
+  const data = await response.json();
+  
+  if (!response.ok) {
+    throw new Error(data.error || '发送私聊消息失败');
+  }
+  
+  return data;
+};
+
+export const getConversations = async (): Promise<Conversation[]> => {
+  const response = await fetch(`${API_BASE_URL}/api/private-chat/conversations`, {
+    method: 'GET',
+    headers: getHeaders(),
+  });
+  
+  if (!response.ok) {
+    throw new Error('获取会话列表失败');
+  }
+  
+  return await response.json();
+};
