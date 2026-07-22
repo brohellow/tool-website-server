@@ -557,6 +557,10 @@ app.get('/healthz', (req, res) => {
   res.json({ status: 'ok' });
 });
 
+app.get('/api/version', (req, res) => {
+  res.json({ version: '1.0.0', apiUrl: '/api' });
+});
+
 app.get('/', (req, res) => {
   if (isProduction) {
     const indexPath = path.join(__dirname, '../dist', 'index.html');
