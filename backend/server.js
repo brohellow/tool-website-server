@@ -13,13 +13,22 @@ const fs = require('fs');
 const { db, initDatabase } = require('./memoryDb');
 const { GameEngine } = require('./gameEngine');
 
-const logFile = path.join(__dirname, '../logs/server.log');
+const logsDir = path.join(__dirname, '../logs');
+const logFile = path.join(logsDir, 'server.log');
+
+if (!fs.existsSync(logsDir)) {
+  fs.mkdirSync(logsDir, { recursive: true });
+}
 
 const log = (message) => {
   const timestamp = new Date().toISOString();
   const logLine = `[${timestamp}] ${message}\n`;
   console.log(message);
-  fs.appendFileSync(logFile, logLine);
+  try {
+    fs.appendFileSync(logFile, logLine);
+  } catch (e) {
+    console.error('日志写入失败:', e);
+  }
 };
 
 const app = express();
