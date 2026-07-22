@@ -558,7 +558,7 @@ app.get('/healthz', (req, res) => {
 });
 
 app.get('/api/version', (req, res) => {
-  res.json({ version: '1.0.0', apiUrl: '/api' });
+  res.json({ version: '2.0.0', apiUrl: '/api', timestamp: new Date().toISOString() });
 });
 
 app.get('/', (req, res) => {
@@ -731,6 +731,7 @@ async function startServer() {
     const httpServer = server.listen(PORT, () => {
       console.log(`服务器运行在 http://localhost:${PORT}`);
       console.log(`WebSocket 运行在 ws://localhost:${PORT}`);
+      console.log(`环境: ${isProduction ? '生产' : '开发'}`);
       resolve(httpServer);
     });
   });
