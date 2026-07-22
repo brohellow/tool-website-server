@@ -733,19 +733,6 @@ app.get('/api/version', (req, res) => {
   res.json({ version: '2.0.0', apiUrl: '/api', timestamp: new Date().toISOString() });
 });
 
-app.get('/api/logs', (req, res) => {
-  try {
-    if (fs.existsSync(logFile)) {
-      const content = fs.readFileSync(logFile, 'utf8');
-      res.json({ logs: content.split('\n').filter(line => line.trim()) });
-    } else {
-      res.json({ logs: ['日志文件不存在'] });
-    }
-  } catch (error) {
-    res.status(500).json({ error: '读取日志失败' });
-  }
-});
-
 app.get('/api/chat/messages', authenticateToken, (req, res) => {
   try {
     const messages = db.prepare(`
