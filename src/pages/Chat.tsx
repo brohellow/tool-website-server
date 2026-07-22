@@ -225,9 +225,9 @@ const Chat = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900">
-      <div className="max-w-6xl mx-auto px-4 pt-24 pb-8">
-        <div className="bg-dark-700/50 backdrop-blur-sm rounded-2xl border border-dark-600 shadow-xl overflow-hidden flex h-[600px]">
+    <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 flex flex-col">
+      <div className="flex-1 max-w-6xl mx-auto w-full px-4 pt-24 pb-8 flex flex-col">
+        <div className="flex-1 bg-dark-700/50 backdrop-blur-sm rounded-2xl border border-dark-600 shadow-xl overflow-hidden flex min-h-0">
           <div className="w-72 border-r border-dark-600 flex flex-col">
             <div className="bg-gradient-to-r from-primary-600/20 to-accent-600/20 px-4 py-4 border-b border-dark-600">
               <h1 className="text-xl font-bold text-white">聊天室</h1>
