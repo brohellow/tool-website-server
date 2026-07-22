@@ -1,6 +1,6 @@
 import { User } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://20111108.xyz';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 let token = localStorage.getItem('auth_token');
 
