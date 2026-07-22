@@ -617,4 +617,5 @@ const db = {
 module.exports = {
   db,
   initDatabase,
+  getStore,
 };

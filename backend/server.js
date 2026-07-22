@@ -10,7 +10,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const nodemailer = require('nodemailer');
 const fs = require('fs');
-const { db, initDatabase } = require('./memoryDb');
+const { db, initDatabase, getStore } = require('./memoryDb');
 const { GameEngine } = require('./gameEngine');
 
 const logsDir = path.join(__dirname, '../logs');
@@ -748,30 +748,32 @@ app.get('/api/private-chat/messages/:receiverId', authenticateToken, (req, res) 
   const { receiverId } = req.params;
   
   try {
-    const messages = db.prepare(`
-      SELECT private_messages.id, private_messages.sender_id, private_messages.receiver_id, 
-             private_messages.content, private_messages.created_at,
-             users.username, users.avatar_url
-      FROM private_messages
-      JOIN users ON private_messages.sender_id = users.id
-      WHERE (private_messages.sender_id = ? AND private_messages.receiver_id = ?)
-         OR (private_messages.sender_id = ? AND private_messages.receiver_id = ?)
-      ORDER BY private_messages.created_at DESC
-      LIMIT 100
-    `).all(req.user.id, receiverId, receiverId, req.user.id);
+    const privateMessages = getStore('private_messages');
+    const users = getStore('users');
     
-    const result = messages.map(m => ({
-      id: m.id,
-      sender_id: m.sender_id,
-      receiver_id: m.receiver_id,
-      content: m.content,
-      created_at: m.created_at,
-      user: {
-        id: m.sender_id,
-        username: m.username,
-        avatar_url: m.avatar_url
-      }
-    }));
+    const messages = privateMessages
+      .filter(m => 
+        (m.sender_id === req.user.id && m.receiver_id === receiverId) ||
+        (m.sender_id === receiverId && m.receiver_id === req.user.id)
+      )
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, 100);
+    
+    const result = messages.map(m => {
+      const senderUser = users.find(u => u.id === m.sender_id);
+      return {
+        id: m.id,
+        sender_id: m.sender_id,
+        receiver_id: m.receiver_id,
+        content: m.content,
+        created_at: m.created_at,
+        user: senderUser ? {
+          id: senderUser.id,
+          username: senderUser.username,
+          avatar_url: senderUser.avatar_url
+        } : null
+      };
+    });
     
     res.json(result.reverse());
   } catch (error) {
@@ -788,35 +790,35 @@ app.post('/api/private-chat/messages', authenticateToken, (req, res) => {
   }
 
   try {
+    const privateMessages = getStore('private_messages');
+    const users = getStore('users');
+    
     const messageId = uuidv4();
     const createdAt = new Date().toISOString();
     
-    db.prepare(
-      'INSERT INTO private_messages (id, sender_id, receiver_id, content, created_at) VALUES (?, ?, ?, ?, ?)'
-    ).run(messageId, req.user.id, receiverId, content.trim(), createdAt);
+    const newMessage = {
+      id: messageId,
+      sender_id: req.user.id,
+      receiver_id: receiverId,
+      content: content.trim(),
+      created_at: createdAt
+    };
+    
+    privateMessages.push(newMessage);
 
-    const message = db.prepare(`
-      SELECT private_messages.id, private_messages.sender_id, private_messages.receiver_id, 
-             private_messages.content, private_messages.created_at,
-             users.username, users.avatar_url
-      FROM private_messages
-      JOIN users ON private_messages.sender_id = users.id
-      WHERE private_messages.id = ?
-    `).get(messageId);
-
-    const senderUser = db.prepare('SELECT id, username, avatar_url FROM users WHERE id = ?').get(req.user.id);
+    const senderUser = users.find(u => u.id === req.user.id);
     
     const messageWithUser = {
-      id: message.id,
-      sender_id: message.sender_id,
-      receiver_id: message.receiver_id,
-      content: message.content,
-      created_at: message.created_at,
-      user: {
-        id: message.sender_id,
-        username: message.username,
-        avatar_url: message.avatar_url
-      }
+      id: newMessage.id,
+      sender_id: newMessage.sender_id,
+      receiver_id: newMessage.receiver_id,
+      content: newMessage.content,
+      created_at: newMessage.created_at,
+      user: senderUser ? {
+        id: senderUser.id,
+        username: senderUser.username,
+        avatar_url: senderUser.avatar_url
+      } : null
     };
 
     const receiverSocketId = userIdSocketMap.get(receiverId);
@@ -833,33 +835,32 @@ app.post('/api/private-chat/messages', authenticateToken, (req, res) => {
 
 app.get('/api/private-chat/conversations', authenticateToken, (req, res) => {
   try {
-    const messages = db.prepare(`
-      SELECT private_messages.sender_id, private_messages.receiver_id, 
-             private_messages.content, private_messages.created_at,
-             users.username, users.avatar_url
-      FROM private_messages
-      JOIN users ON (private_messages.sender_id = users.id AND private_messages.receiver_id = ?)
-                 OR (private_messages.receiver_id = users.id AND private_messages.sender_id = ?)
-      WHERE private_messages.sender_id = ? OR private_messages.receiver_id = ?
-      ORDER BY private_messages.created_at DESC
-    `).all(req.user.id, req.user.id, req.user.id, req.user.id);
+    const privateMessages = getStore('private_messages');
+    const users = getStore('users');
     
     const conversations = new Map();
     
-    messages.forEach(m => {
-      const otherUserId = m.sender_id === req.user.id ? m.receiver_id : m.sender_id;
-      if (!conversations.has(otherUserId)) {
-        conversations.set(otherUserId, {
-          user_id: otherUserId,
-          username: m.username,
-          avatar_url: m.avatar_url,
-          last_message: m.content,
-          last_message_at: m.created_at
-        });
+    privateMessages.forEach(m => {
+      if (m.sender_id === req.user.id || m.receiver_id === req.user.id) {
+        const otherUserId = m.sender_id === req.user.id ? m.receiver_id : m.sender_id;
+        if (!conversations.has(otherUserId)) {
+          const otherUser = users.find(u => u.id === otherUserId);
+          conversations.set(otherUserId, {
+            user_id: otherUserId,
+            username: otherUser?.username || '未知用户',
+            avatar_url: otherUser?.avatar_url,
+            last_message: m.content,
+            last_message_at: m.created_at
+          });
+        }
       }
     });
     
-    res.json(Array.from(conversations.values()));
+    const result = Array.from(conversations.values()).sort(
+      (a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime()
+    );
+    
+    res.json(result);
   } catch (error) {
     console.error('获取会话列表失败:', error);
     res.status(500).json({ error: '获取会话列表失败' });

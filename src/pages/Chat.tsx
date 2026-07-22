@@ -3,11 +3,11 @@ import { useStore } from '../store/useStore';
 import {
   getChatMessages,
   sendChatMessage,
-  getUsers,
   getPrivateMessages,
   sendPrivateMessage,
+  getConversations,
 } from '../utils/api';
-import { ChatMessage, PrivateMessage, User } from '../types';
+import { ChatMessage, PrivateMessage, Conversation, User } from '../types';
 import { formatDateTime } from '../utils/date';
 import { io } from 'socket.io-client';
 
@@ -20,7 +20,7 @@ const Chat = () => {
   const [inputValue, setInputValue] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [users, setUsers] = useState<User[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   
   const shouldScrollRef = useRef(true);
@@ -42,8 +42,8 @@ const Chat = () => {
         }
         
         if (chatMode === 'private') {
-          const usersList = await getUsers();
-          setUsers(usersList.filter(u => u.id !== user?.id));
+          const convos = await getConversations();
+          setConversations(convos);
         }
       } catch (err) {
         console.error('获取消息失败:', err);
@@ -96,6 +96,7 @@ const Chat = () => {
         setMessages(prev => [...prev as PrivateMessage[], message]);
         shouldScrollRef.current = true;
       }
+      getConversations().then(setConversations).catch(console.error);
     });
 
     socket.on('connect_error', (error) => {
@@ -133,17 +134,40 @@ const Chat = () => {
     try {
       await sendPrivateMessage(selectedUser.id, inputValue.trim());
       setInputValue('');
+      getConversations().then(setConversations).catch(console.error);
     } catch (err) {
       console.error('发送私聊消息失败:', err);
       setError('发送私聊消息失败，请稍后重试');
     }
   };
 
-  const handleSelectUser = async (user: User) => {
+  const handleStartPrivateChat = async (messageUser: User) => {
+    setSelectedUser(messageUser);
+    setChatMode('private');
+    setLoading(true);
+    try {
+      const data = await getPrivateMessages(messageUser.id);
+      setMessages(data || []);
+      shouldScrollRef.current = true;
+    } catch (err) {
+      console.error('获取私聊消息失败:', err);
+      setError('获取私聊消息失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSelectConversation = async (conversation: Conversation) => {
+    const user: User = {
+      id: conversation.user_id,
+      username: conversation.username,
+      avatar_url: conversation.avatar_url,
+      email: '',
+    };
     setSelectedUser(user);
     setLoading(true);
     try {
-      const data = await getPrivateMessages(user.id);
+      const data = await getPrivateMessages(conversation.user_id);
       setMessages(data || []);
       shouldScrollRef.current = true;
     } catch (err) {
@@ -166,11 +190,38 @@ const Chat = () => {
       return message.user.username;
     }
     if ('user_id' in message) {
-      const msgUser = users.find(u => u.id === message.user_id);
-      return msgUser?.username || '匿名用户';
+      return '匿名用户';
     }
-    const msgUser = users.find(u => u.id === message.sender_id);
-    return msgUser?.username || '匿名用户';
+    return '匿名用户';
+  };
+
+  const getUser = (message: ChatMessage | PrivateMessage): User | null => {
+    if (message.user) {
+      return message.user;
+    }
+    return null;
+  };
+
+  const renderAvatar = (messageUser: User | null, isOwn: boolean) => {
+    return (
+      <div 
+        className={`w-10 h-10 rounded-full flex-shrink-0 ${
+          isOwn ? 'order-2' : 'order-1'
+        }`}
+      >
+        {messageUser?.avatar_url ? (
+          <img 
+            src={messageUser.avatar_url} 
+            alt={messageUser.username}
+            className="w-full h-full rounded-full object-cover border-2 border-dark-500"
+          />
+        ) : (
+          <div className="w-full h-full rounded-full bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center text-white font-semibold text-sm border-2 border-dark-500">
+            {messageUser?.username?.charAt(0) || '?'}
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -194,7 +245,7 @@ const Chat = () => {
                 群聊
               </button>
               <button
-                onClick={() => setChatMode('private')}
+                onClick={() => { setChatMode('private'); getConversations().then(setConversations).catch(console.error); }}
                 className={`flex-1 py-3 text-sm font-medium transition-all ${
                   chatMode === 'private'
                     ? 'bg-primary-600/20 text-primary-400 border-b-2 border-primary-500'
@@ -213,32 +264,50 @@ const Chat = () => {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                     </svg>
                     <p className="text-gray-400 text-sm">群聊模式</p>
-                    <p className="text-gray-500 text-xs mt-1">与所有用户实时交流</p>
+                    <p className="text-gray-500 text-xs mt-1">点击其他用户头像可发起私聊</p>
                   </div>
                 </div>
               ) : (
                 <div className="p-2">
-                  {users.length === 0 ? (
+                  {conversations.length === 0 ? (
                     <div className="p-4 text-center text-gray-500">
-                      <p className="text-sm">暂无其他用户</p>
+                      <svg className="w-12 h-12 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                      </svg>
+                      <p className="text-sm">暂无私信会话</p>
+                      <p className="text-xs mt-1">在群聊中点击用户头像开始私聊</p>
                     </div>
                   ) : (
-                    users.map((u) => (
+                    conversations.map((conv) => (
                       <div
-                        key={u.id}
-                        onClick={() => handleSelectUser(u)}
+                        key={conv.user_id}
+                        onClick={() => handleSelectConversation(conv)}
                         className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all ${
-                          selectedUser?.id === u.id
+                          selectedUser?.id === conv.user_id
                             ? 'bg-primary-600/20 border border-primary-500/50'
                             : 'hover:bg-dark-600/50'
                         }`}
                       >
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center text-white font-semibold text-sm">
-                          {u.username?.charAt(0) || '?'}
+                        <div className="w-10 h-10 rounded-full flex-shrink-0">
+                          {conv.avatar_url ? (
+                            <img 
+                              src={conv.avatar_url} 
+                              alt={conv.username}
+                              className="w-full h-full rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full rounded-full bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center text-white font-semibold text-sm">
+                              {conv.username?.charAt(0) || '?'}
+                            </div>
+                          )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-white text-sm font-medium truncate">{u.username}</p>
+                          <p className="text-white text-sm font-medium truncate">{conv.username}</p>
+                          <p className="text-gray-500 text-xs truncate">{conv.last_message}</p>
                         </div>
+                        <span className="text-gray-600 text-xs">
+                          {formatDateTime(conv.last_message_at)}
+                        </span>
                       </div>
                     ))
                   )}
@@ -272,30 +341,44 @@ const Chat = () => {
                       <p>还没有消息，快来发送第一条消息吧！</p>
                     </div>
                   ) : (
-                    (messages as ChatMessage[]).map((message) => (
-                      <div
-                        key={message.id}
-                        className={`flex ${isOwnMessage(message) ? 'justify-end' : 'justify-start'}`}
-                      >
+                    (messages as ChatMessage[]).map((message) => {
+                      const isOwn = isOwnMessage(message);
+                      const messageUser = getUser(message);
+                      return (
                         <div
-                          className={`max-w-[80%] ${
-                            isOwnMessage(message)
-                              ? 'bg-primary-600 text-white rounded-2xl rounded-br-md'
-                              : 'bg-dark-600 text-gray-100 rounded-2xl rounded-bl-md'
-                          } p-4 shadow-lg`}
+                          key={message.id}
+                          className={`flex items-start gap-3 ${isOwn ? 'justify-end' : 'justify-start'}`}
                         >
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className={`font-semibold text-sm ${isOwnMessage(message) ? 'text-primary-200' : 'text-primary-400'}`}>
-                              {getUsername(message)}
-                            </span>
-                            <span className="text-xs text-gray-500">
-                              {formatDateTime(message.created_at)}
-                            </span>
+                          {!isOwn && messageUser && (
+                            <div 
+                              onClick={() => handleStartPrivateChat(messageUser)}
+                              className="cursor-pointer hover:ring-2 hover:ring-primary-500 rounded-full transition-all"
+                              title={`点击发起私聊`}
+                            >
+                              {renderAvatar(messageUser, isOwn)}
+                            </div>
+                          )}
+                          <div
+                            className={`max-w-[80%] ${
+                              isOwn
+                                ? 'bg-primary-600 text-white rounded-2xl rounded-br-md'
+                                : 'bg-dark-600 text-gray-100 rounded-2xl rounded-bl-md'
+                            } p-4 shadow-lg`}
+                          >
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className={`font-semibold text-sm ${isOwn ? 'text-primary-200' : 'text-primary-400'}`}>
+                                {getUsername(message)}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {formatDateTime(message.created_at)}
+                              </span>
+                            </div>
+                            <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                           </div>
-                          <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                          {isOwn && messageUser && renderAvatar(messageUser, isOwn)}
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
 
@@ -330,8 +413,18 @@ const Chat = () => {
                 {selectedUser ? (
                   <>
                     <div className="bg-gradient-to-r from-primary-600/20 to-accent-600/20 px-6 py-4 border-b border-dark-600 flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center text-white font-semibold">
-                        {selectedUser.username?.charAt(0) || '?'}
+                      <div className="w-10 h-10 rounded-full flex-shrink-0">
+                        {selectedUser.avatar_url ? (
+                          <img 
+                            src={selectedUser.avatar_url} 
+                            alt={selectedUser.username}
+                            className="w-full h-full rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full rounded-full bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center text-white font-semibold">
+                            {selectedUser.username?.charAt(0) || '?'}
+                          </div>
+                        )}
                       </div>
                       <div>
                         <h2 className="text-lg font-bold text-white">{selectedUser.username}</h2>
@@ -356,30 +449,36 @@ const Chat = () => {
                           <p>还没有消息，快来打个招呼吧！</p>
                         </div>
                       ) : (
-                        (messages as PrivateMessage[]).map((message) => (
-                          <div
-                            key={message.id}
-                            className={`flex ${isOwnMessage(message) ? 'justify-end' : 'justify-start'}`}
-                          >
+                        (messages as PrivateMessage[]).map((message) => {
+                          const isOwn = isOwnMessage(message);
+                          const messageUser = getUser(message);
+                          return (
                             <div
-                              className={`max-w-[80%] ${
-                                isOwnMessage(message)
-                                  ? 'bg-primary-600 text-white rounded-2xl rounded-br-md'
-                                  : 'bg-dark-600 text-gray-100 rounded-2xl rounded-bl-md'
-                              } p-4 shadow-lg`}
+                              key={message.id}
+                              className={`flex items-start gap-3 ${isOwn ? 'justify-end' : 'justify-start'}`}
                             >
-                              <div className="flex items-center gap-2 mb-2">
-                                <span className={`font-semibold text-sm ${isOwnMessage(message) ? 'text-primary-200' : 'text-primary-400'}`}>
-                                  {getUsername(message)}
-                                </span>
-                                <span className="text-xs text-gray-500">
-                                  {formatDateTime(message.created_at)}
-                                </span>
+                              {!isOwn && messageUser && renderAvatar(messageUser, isOwn)}
+                              <div
+                                className={`max-w-[80%] ${
+                                  isOwn
+                                    ? 'bg-primary-600 text-white rounded-2xl rounded-br-md'
+                                    : 'bg-dark-600 text-gray-100 rounded-2xl rounded-bl-md'
+                                } p-4 shadow-lg`}
+                              >
+                                <div className="flex items-center gap-2 mb-2">
+                                  <span className={`font-semibold text-sm ${isOwn ? 'text-primary-200' : 'text-primary-400'}`}>
+                                    {getUsername(message)}
+                                  </span>
+                                  <span className="text-xs text-gray-500">
+                                    {formatDateTime(message.created_at)}
+                                  </span>
+                                </div>
+                                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                               </div>
-                              <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                              {isOwn && messageUser && renderAvatar(messageUser, isOwn)}
                             </div>
-                          </div>
-                        ))
+                          );
+                        })
                       )}
                     </div>
 
@@ -415,8 +514,8 @@ const Chat = () => {
                       <svg className="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                       </svg>
-                      <p>选择一个用户开始私聊</p>
-                      <p className="text-sm mt-1">从左侧列表中选择要聊天的用户</p>
+                      <p>选择一个会话开始聊天</p>
+                      <p className="text-sm mt-1">或在群聊中点击用户头像发起私聊</p>
                     </div>
                   </div>
                 )}

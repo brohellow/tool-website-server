@@ -20,6 +20,7 @@ const Profile = () => {
   const [profileForm, setProfileForm] = useState({
     username: '',
     bio: '',
+    avatar_url: '',
   });
   const [showSuccess, setShowSuccess] = useState(false);
   const [themePreference, setThemePreference] = useState('dark');
@@ -40,6 +41,7 @@ const Profile = () => {
     setProfileForm({
       username: user.username || '',
       bio: user.bio || '',
+      avatar_url: user.avatar_url || '',
     });
     setThemePreference(localStorage.getItem('theme') || 'dark');
   }, [user]);
@@ -186,10 +188,43 @@ const Profile = () => {
           <aside className="lg:w-64 shrink-0">
             <div className="glass-card p-6 sticky top-24">
               <div className="flex flex-col items-center mb-8">
-                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary-500 to-blue-500 flex items-center justify-center shadow-lg shadow-primary-500/30 mb-4">
-                  <span className="text-2xl font-bold text-white">
-                    {user.username?.charAt(0).toUpperCase() || user.email.charAt(0).toUpperCase()}
-                  </span>
+                <div className="relative group">
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary-500 to-blue-500 flex items-center justify-center shadow-lg shadow-primary-500/30 mb-4 overflow-hidden">
+                    {user.avatar_url ? (
+                      <img 
+                        src={user.avatar_url} 
+                        alt="头像" 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-2xl font-bold text-white">
+                        {user.username?.charAt(0).toUpperCase() || user.email.charAt(0).toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                  {editingProfile && (
+                    <label className="absolute bottom-0 right-0 w-8 h-8 bg-primary-500 rounded-full flex items-center justify-center text-white cursor-pointer hover:bg-primary-600 transition-colors shadow-lg">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+                        <path d="m15 5 4 4"/>
+                      </svg>
+                      <input 
+                        type="file" 
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                              setProfileForm({ ...profileForm, avatar_url: event.target?.result as string });
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
                 </div>
                 <h3 className="font-semibold text-gray-800 dark:text-white">{user.username || '用户'}</h3>
                 <p className="text-gray-500 dark:text-gray-400 text-sm">{user.email}</p>
