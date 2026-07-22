@@ -5,6 +5,16 @@ import { io, Socket } from 'socket.io-client';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
+interface Warrior {
+  id: string;
+  name: string;
+  title: string;
+  skill: string;
+  skillDesc: string;
+  icon: string;
+  hp: number;
+}
+
 interface Equipment {
   weapon: { name: string; type: string } | null;
   armor: { name: string; type: string } | null;
@@ -22,6 +32,8 @@ interface Player {
   isReady: boolean;
   socketId?: string;
   equipment: Equipment;
+  warrior: Warrior | null;
+  hasSelectedWarrior: boolean;
 }
 
 interface Card {
@@ -45,6 +57,7 @@ interface PublicState {
   logs: string[];
   discardPileCount: number;
   deckCount: number;
+  availableWarriors: Warrior[];
 }
 
 interface PrivateState {
@@ -65,6 +78,8 @@ const GameRoom = () => {
   const [selectedTarget, setSelectedTarget] = useState<string | null>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
   const [error, setError] = useState('');
+  const [isConnected, setIsConnected] = useState(false);
+  const [connecting, setConnecting] = useState(true);
   const logsEndRef = useRef<HTMLDivElement>(null);
 
   const [voiceMode, setVoiceMode] = useState<VoiceMode>('always');
@@ -88,6 +103,30 @@ const GameRoom = () => {
       transports: ['websocket', 'polling'],
     });
     setSocket(newSocket);
+
+    newSocket.on('connect', () => {
+      console.log('Socket连接成功:', newSocket.id);
+      setIsConnected(true);
+      setConnecting(false);
+    });
+
+    newSocket.on('disconnect', (reason) => {
+      console.log('Socket断开连接:', reason);
+      setIsConnected(false);
+      if (reason === 'io server disconnect') {
+        setError('服务器主动断开连接');
+      } else if (reason === 'io client disconnect') {
+        setError('客户端主动断开连接');
+      } else {
+        setError('连接已断开，请刷新页面重试');
+      }
+    });
+
+    newSocket.on('connect_error', (err) => {
+      console.error('Socket连接错误:', err);
+      setConnecting(false);
+      setError('连接服务器失败，请检查网络连接');
+    });
 
     newSocket.on('room-update', (state) => {
       setPublicState(state);
@@ -399,6 +438,11 @@ const GameRoom = () => {
     socket.emit('toggle-ready', { roomId, playerId: user.id });
   }, [socket, roomId, user]);
 
+  const selectWarrior = useCallback((warriorId: string) => {
+    if (!socket || !roomId || !user) return;
+    socket.emit('select-warrior', { roomId, playerId: user.id, warriorId });
+  }, [socket, roomId, user]);
+
   const startGame = useCallback(() => {
     if (!socket || !roomId) return;
     socket.emit('start-game', { roomId });
@@ -501,12 +545,41 @@ const GameRoom = () => {
     return null;
   }
 
-  if (!publicState) {
+  if (connecting || !isConnected) {
     return (
       <div className="page-transition pt-20 min-h-screen flex items-center justify-center bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900">
-        <div className="w-10 h-10 border-4 border-primary-500/30 border-t-primary-500 rounded-full animate-spin" />
+        <div className="text-center">
+          {connecting ? (
+            <>
+              <div className="w-16 h-16 border-4 border-primary-500/30 border-t-primary-500 rounded-full animate-spin mx-auto mb-6" />
+              <p className="text-gray-400 text-lg">正在连接游戏服务器...</p>
+              <p className="text-gray-500 text-sm mt-2">房间 ID: {roomId}</p>
+            </>
+          ) : (
+            <>
+              <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-6">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-400">
+                  <line x1="1" y1="1" x2="23" y2="23"/>
+                  <path d="M12 19c-3.73 0-7-2.55-7-7 0-2.25 1.16-4.28 3-5.54l1.45 1.45c1.21 1.21 2.18 2.7 2.18 4.09 0 2.76-2.24 5-5 5 1.39 0 2.89-.97 3.51-2.3l1.49 1.49C17.32 18.46 14.84 19 12 19"/>
+                  <path d="M12 5c3.73 0 7 2.55 7 7 0 2.25-1.16 4.28-3 5.54l-1.45-1.45c-1.21-1.21-2.18-2.7-2.18-4.09 0-2.76 2.24-5 5-5-1.39 0-2.89.97-3.51 2.3l-1.49-1.49C6.68 5.54 9.16 5 12 5"/>
+                </svg>
+              </div>
+              <p className="text-red-400 text-lg mb-4">{error || '连接失败'}</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="px-6 py-3 bg-primary-500 text-white rounded-xl hover:bg-primary-600 transition-colors"
+              >
+                重新连接
+              </button>
+            </>
+          )}
+        </div>
       </div>
     );
+  }
+
+  if (!publicState) {
+    return null;
   }
 
   const currentPlayer = publicState.players[publicState.currentPlayerIndex];
@@ -685,6 +758,103 @@ const GameRoom = () => {
             </div>
           </div>
         </div>
+      ) : publicState.gamePhase === 'selecting_warrior' ? (
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="glass-card p-8 max-w-4xl w-full mx-4">
+            <div className="text-center mb-8">
+              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary-500 to-purple-500 flex items-center justify-center mx-auto mb-6">
+                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                  <circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+              </div>
+              <h2 className="text-3xl font-bold text-white mb-2">选将阶段</h2>
+              <p className="text-gray-400">每位玩家选择一名武将，所有玩家选择完毕后游戏开始</p>
+            </div>
+
+            <div className="space-y-4 mb-8">
+              {publicState.players.map((player) => (
+                <div
+                  key={player.id}
+                  className={`flex items-center justify-between p-4 rounded-xl border ${
+                    player.id === user.id 
+                      ? 'border-accent-500 bg-accent-500/10' 
+                      : 'border-dark-600 bg-dark-700/30'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                      player.id === user.id 
+                        ? 'bg-accent-500/20 text-accent-400' 
+                        : 'bg-dark-600 text-gray-400'
+                    }`}>
+                      {player.warrior?.icon || player.name.charAt(0)}
+                    </div>
+                    <div>
+                      <span className="text-white font-medium">{player.name}</span>
+                      {player.warrior && (
+                        <span className="ml-2 text-primary-400 text-sm">· {player.warrior.name} ({player.warrior.skill})</span>
+                      )}
+                    </div>
+                  </div>
+                  <span className={`px-3 py-1 rounded-full text-sm ${
+                    player.hasSelectedWarrior 
+                      ? 'bg-green-500/20 text-green-400' 
+                      : 'bg-yellow-500/20 text-yellow-400'
+                  }`}>
+                    {player.hasSelectedWarrior ? '已选将' : '待选将'}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {myPlayerData?.hasSelectedWarrior ? (
+              <div className="text-center py-8">
+                <div className="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-4">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-400">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">已选择武将</h3>
+                <p className="text-gray-400">等待其他玩家选择...</p>
+              </div>
+            ) : (
+              <>
+                <h3 className="text-xl font-bold text-white mb-6">选择武将（{publicState.availableWarriors.length}名可选）</h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {publicState.availableWarriors.map((warrior) => (
+                    <div
+                      key={warrior.id}
+                      className="bg-dark-700/50 border border-dark-600 rounded-xl p-4 cursor-pointer hover:border-primary-500 hover:shadow-lg hover:shadow-primary-500/10 transition-all group"
+                      onClick={() => selectWarrior(warrior.id)}
+                    >
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary-500/30 to-purple-500/30 flex items-center justify-center text-2xl font-bold text-white">
+                          {warrior.icon}
+                        </div>
+                        <div>
+                          <div className="text-white font-bold">{warrior.name}</div>
+                          <div className="text-primary-400 text-sm">{warrior.skill}</div>
+                        </div>
+                      </div>
+                      <div className="text-gray-400 text-xs mb-3 line-clamp-2">{warrior.skillDesc}</div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-500 text-xs">{warrior.title}</span>
+                        <div className="flex gap-1">
+                          {Array.from({ length: warrior.hp }).map((_, i) => (
+                            <span key={i} className="text-red-400 text-sm">❤️</span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       ) : publicState.gamePhase === 'ended' ? (
         <div className="min-h-screen flex items-center justify-center">
           <div className="glass-card p-8 max-w-md w-full mx-4 text-center">
@@ -776,12 +946,12 @@ const GameRoom = () => {
                     )}
                     
                     <div className="flex items-center gap-4">
-                      <div className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold ${
+                      <div className={`w-16 h-16 rounded-xl flex items-center justify-center text-2xl font-bold ${
                         isMe 
                           ? 'bg-gradient-to-br from-accent-500 to-accent-600 text-white' 
                           : 'bg-gradient-to-br from-dark-600 to-dark-700 text-gray-300'
                       }`}>
-                        {player.name.charAt(0)}
+                        {player.warrior?.icon || player.name.charAt(0)}
                       </div>
                       
                       <div className="flex-1">
@@ -792,6 +962,12 @@ const GameRoom = () => {
                           </span>
                           <span className={`w-2 h-2 rounded-full ${player.isOnline ? 'bg-green-500' : 'bg-gray-500'}`} />
                         </div>
+                        
+                        {player.warrior && (
+                          <div className="text-primary-400 text-xs mb-1">
+                            {player.warrior.name} · {player.warrior.skill}
+                          </div>
+                        )}
                         
                         <div className="flex items-center gap-1 mb-2">
                           {Array.from({ length: player.maxHealth }).map((_, i) => (

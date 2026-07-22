@@ -1022,6 +1022,23 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('select-warrior', ({ roomId, playerId, warriorId }) => {
+    const room = gameEngine.selectWarrior(roomId, playerId, warriorId);
+    if (room) {
+      const publicState = gameEngine.getPublicState(roomId);
+      io.to(roomId).emit('room-update', publicState);
+
+      room.players.forEach(player => {
+        if (player.socketId) {
+          const privateState = gameEngine.getPrivateState(roomId, player.id);
+          if (privateState) {
+            io.to(player.socketId).emit('private-state', privateState);
+          }
+        }
+      });
+    }
+  });
+
   socket.on('play-card', ({ roomId, playerId, cardId, targetPlayerId }) => {
     const result = gameEngine.playCard(roomId, playerId, cardId, targetPlayerId);
 

@@ -53,6 +53,29 @@ const TRICK_CARDS = [
   { type: 'trick_defend_all', name: '铁索连环', description: '选择一至两名角色，横置或重置这些角色' },
 ];
 
+const WARRIORS = [
+  { id: 'w1', name: '刘备', title: '仁德', hp: 3, skill: '仁德', skillDesc: '出牌阶段，你可以将任意数量的手牌交给其他角色，若给出的牌不少于两张，你回复1点体力', icon: '刘' },
+  { id: 'w2', name: '关羽', title: '武圣', hp: 3, skill: '武圣', skillDesc: '你可以将一张红色牌当【杀】使用或打出', icon: '关' },
+  { id: 'w3', name: '张飞', title: '咆哮', hp: 4, skill: '咆哮', skillDesc: '出牌阶段，你可以使用任意数量的【杀】', icon: '张' },
+  { id: 'w4', name: '赵云', title: '龙胆', hp: 4, skill: '龙胆', skillDesc: '你可以将一张杀当【闪】使用或打出，或将一张闪当【杀】使用或打出', icon: '赵' },
+  { id: 'w5', name: '马超', title: '铁骑', hp: 4, skill: '铁骑', skillDesc: '当你使用【杀】指定一名角色为目标后，你可以进行判定，若结果为红色，该角色不能使用【闪】响应此【杀】', icon: '马' },
+  { id: 'w6', name: '黄忠', title: '烈弓', hp: 4, skill: '烈弓', skillDesc: '当你使用【杀】指定一名角色为目标后，若该角色的手牌数大于你的手牌数，你可以进行判定，若结果为红色，该角色不能使用【闪】响应此【杀】', icon: '黄' },
+  { id: 'w7', name: '诸葛亮', title: '观星', hp: 3, skill: '观星', skillDesc: '准备阶段，你可以观看牌堆顶的X张牌（X为存活角色数且最多为5），将其中任意数量的牌以任意顺序置于牌堆顶，其余以任意顺序置于牌堆底', icon: '诸' },
+  { id: 'w8', name: '庞统', title: '连环', hp: 3, skill: '连环', skillDesc: '当你使用【铁索连环】指定目标后，你可以选择一项：1. 重铸一张手牌；2. 摸一张牌', icon: '庞' },
+  { id: 'w9', name: '曹操', title: '奸雄', hp: 4, skill: '奸雄', skillDesc: '当你受到伤害后，你可以获得造成伤害的牌', icon: '曹' },
+  { id: 'w10', name: '司马懿', title: '反馈', hp: 3, skill: '反馈', skillDesc: '当你受到伤害后，你可以获得伤害来源的一张牌', icon: '司' },
+  { id: 'w11', name: '夏侯惇', title: '刚烈', hp: 4, skill: '刚烈', skillDesc: '当你受到伤害后，你可以进行判定，若结果不为红桃，伤害来源选择一项：1. 弃两张手牌；2. 受到你造成的1点伤害', icon: '夏' },
+  { id: 'w12', name: '张辽', title: '突袭', hp: 4, skill: '突袭', skillDesc: '摸牌阶段，你可以放弃摸牌，改为获得两名其他角色的各一张手牌', icon: '张' },
+  { id: 'w13', name: '孙权', title: '制衡', hp: 4, skill: '制衡', skillDesc: '出牌阶段限一次，你可以弃置任意数量的手牌，然后摸等量的牌', icon: '孙' },
+  { id: 'w14', name: '甘宁', title: '奇袭', hp: 4, skill: '奇袭', skillDesc: '你可以将一张黑色牌当【过河拆桥】使用', icon: '甘' },
+  { id: 'w15', name: '吕蒙', title: '克己', hp: 4, skill: '克己', skillDesc: '若你于出牌阶段未使用或打出过【杀】，你可以跳过弃牌阶段', icon: '吕' },
+  { id: 'w16', name: '黄盖', title: '苦肉', hp: 4, skill: '苦肉', skillDesc: '出牌阶段限一次，你可以失去1点体力，然后摸两张牌', icon: '黄' },
+  { id: 'w17', name: '周瑜', title: '英姿', hp: 3, skill: '英姿', skillDesc: '摸牌阶段，你可以多摸一张牌', icon: '周' },
+  { id: 'w18', name: '陆逊', title: '谦逊', hp: 3, skill: '谦逊', skillDesc: '你不能成为【顺手牵羊】和【乐不思蜀】的目标', icon: '陆' },
+  { id: 'w19', name: '华佗', title: '青囊', hp: 3, skill: '青囊', skillDesc: '出牌阶段限一次，你可以弃置一张手牌并选择一名受伤的角色，令其回复1点体力', icon: '华' },
+  { id: 'w20', name: '吕布', title: '无双', hp: 4, skill: '无双', skillDesc: '锁定技，当你使用【杀】指定一名角色为目标后，该角色需使用两张【闪】才能抵消；当你使用【决斗】指定一名角色为目标后，或成为【决斗】的目标时，你每次需要打出两张【杀】', icon: '吕' },
+];
+
 const createDeck = () => {
   const deck = [];
   
@@ -177,6 +200,8 @@ class GameEngine {
         maxHealth: 4,
         isOnline: true,
         isReady: false,
+        warrior: null,
+        hasSelectedWarrior: false,
       }],
       deck: [],
       discardPile: [],
@@ -184,6 +209,7 @@ class GameEngine {
       gamePhase: 'waiting',
       turnNumber: 1,
       logs: [`房间创建成功！房主：${hostName}`],
+      availableWarriors: [],
     });
     return roomId;
   }
@@ -210,6 +236,8 @@ class GameEngine {
       maxHealth: 4,
       isOnline: true,
       isReady: false,
+      warrior: null,
+      hasSelectedWarrior: false,
     });
     room.logs.push(`${playerName} 加入了房间`);
     return room;
@@ -279,11 +307,8 @@ class GameEngine {
     if (room.players.length < 2) return null;
     if (!room.players.every(p => p.isReady)) return null;
 
-    room.deck = createDeck();
-    room.discardPile = [];
-    room.currentPlayerIndex = 0;
-    room.gamePhase = 'playing';
-    room.turnNumber = 1;
+    const shuffledWarriors = shuffleDeck([...WARRIORS]);
+    room.availableWarriors = shuffledWarriors.slice(0, room.players.length * 3);
 
     room.players.forEach(player => {
       player.handCards = [];
@@ -293,7 +318,58 @@ class GameEngine {
         positiveMount: null,
         negativeMount: null,
       };
-      player.health = player.maxHealth;
+      player.health = 4;
+      player.maxHealth = 4;
+      player.warrior = null;
+      player.hasSelectedWarrior = false;
+    });
+
+    room.deck = createDeck();
+    room.discardPile = [];
+    room.currentPlayerIndex = 0;
+    room.gamePhase = 'selecting_warrior';
+    room.turnNumber = 1;
+
+    room.logs.push('进入选将阶段！');
+    room.logs.push('每位玩家请选择一名武将');
+    return room;
+  }
+
+  selectWarrior(roomId, playerId, warriorId) {
+    const room = this.rooms.get(roomId);
+    if (!room) return null;
+    if (room.gamePhase !== 'selecting_warrior') return null;
+
+    const player = room.players.find(p => p.id === playerId);
+    if (!player) return null;
+    if (player.hasSelectedWarrior) return null;
+
+    const warrior = WARRIORS.find(w => w.id === warriorId);
+    if (!warrior) return null;
+
+    player.warrior = warrior;
+    player.health = warrior.hp;
+    player.maxHealth = warrior.hp;
+    player.hasSelectedWarrior = true;
+
+    room.logs.push(`${player.name} 选择了武将【${warrior.name}】(${warrior.skill})`);
+
+    const allSelected = room.players.every(p => p.hasSelectedWarrior);
+    if (allSelected) {
+      this.startPlaying(roomId);
+    }
+
+    return room;
+  }
+
+  startPlaying(roomId) {
+    const room = this.rooms.get(roomId);
+    if (!room) return null;
+
+    room.gamePhase = 'playing';
+
+    room.players.forEach(player => {
+      player.handCards = [];
       for (let i = 0; i < 4; i++) {
         if (room.deck.length > 0) {
           player.handCards.push(room.deck.pop());
@@ -570,6 +646,16 @@ class GameEngine {
           positiveMount: p.equipment.positiveMount ? { name: p.equipment.positiveMount.name, type: p.equipment.positiveMount.type } : null,
           negativeMount: p.equipment.negativeMount ? { name: p.equipment.negativeMount.name, type: p.equipment.negativeMount.type } : null,
         },
+        warrior: p.warrior ? {
+          id: p.warrior.id,
+          name: p.warrior.name,
+          title: p.warrior.title,
+          skill: p.warrior.skill,
+          skillDesc: p.warrior.skillDesc,
+          icon: p.warrior.icon,
+          hp: p.warrior.hp,
+        } : null,
+        hasSelectedWarrior: p.hasSelectedWarrior,
       })),
       currentPlayerIndex: room.currentPlayerIndex,
       gamePhase: room.gamePhase,
@@ -577,6 +663,15 @@ class GameEngine {
       logs: room.logs,
       discardPileCount: room.discardPile.length,
       deckCount: room.deck.length,
+      availableWarriors: room.gamePhase === 'selecting_warrior' ? room.availableWarriors.map(w => ({
+        id: w.id,
+        name: w.name,
+        title: w.title,
+        skill: w.skill,
+        skillDesc: w.skillDesc,
+        icon: w.icon,
+        hp: w.hp,
+      })) : [],
     };
   }
 
