@@ -11,7 +11,9 @@ const Chat = () => {
   const [inputValue, setInputValue] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [shouldScroll, setShouldScroll] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchMessages = async () => {
@@ -32,8 +34,23 @@ const Chat = () => {
   }, []);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    if (shouldScroll) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, shouldScroll]);
+
+  useEffect(() => {
+    const container = chatContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      setShouldScroll(scrollHeight - scrollTop - clientHeight < 100);
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, []);
 
   useEffect(() => {
     const socket = io({
@@ -63,8 +80,7 @@ const Chat = () => {
     if (!inputValue.trim()) return;
 
     try {
-      const newMessage = await sendChatMessage(inputValue.trim());
-      setMessages(prev => [...prev, newMessage]);
+      await sendChatMessage(inputValue.trim());
       setInputValue('');
     } catch (err) {
       console.error('发送消息失败:', err);
@@ -78,14 +94,14 @@ const Chat = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900">
-      <div className="max-w-3xl mx-auto px-4 py-8">
+      <div className="max-w-3xl mx-auto px-4 pt-24 pb-8">
         <div className="bg-dark-700/50 backdrop-blur-sm rounded-2xl border border-dark-600 shadow-xl overflow-hidden">
           <div className="bg-gradient-to-r from-primary-600/20 to-accent-600/20 px-6 py-4 border-b border-dark-600">
             <h1 className="text-2xl font-bold text-white">聊天室</h1>
             <p className="text-gray-400 text-sm mt-1">与其他用户实时交流</p>
           </div>
 
-          <div className="h-[500px] overflow-y-auto p-6 space-y-4">
+          <div ref={chatContainerRef} className="h-[500px] overflow-y-auto p-6 space-y-4">
             {loading ? (
               <div className="flex items-center justify-center h-full">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
