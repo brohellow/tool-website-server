@@ -314,18 +314,9 @@ function parseSQL(sql) {
 
 function matchesWhere(row, whereClause, paramValue) {
   const { field, op } = whereClause;
-  let colName = field;
-  
   const dotIdx = field.indexOf('.');
-  if (dotIdx >= 0) {
-    const table = field.substring(0, dotIdx).toLowerCase();
-    colName = table + '_' + field.substring(dotIdx + 1);
-  }
-  
+  const colName = dotIdx >= 0 ? field.substring(dotIdx + 1) : field;
   let rowValue = row[colName];
-  if (rowValue === undefined) {
-    rowValue = row[field];
-  }
 
   if (op === 'LIKE') {
     const pattern = String(paramValue).replace(/%/g, '.*').replace(/_/g, '.');
@@ -372,12 +363,8 @@ function applyOrderBy(data, parsed) {
   if (parsed.orderBy.length === 0) return data;
   return [...data].sort((a, b) => {
     for (const ob of parsed.orderBy) {
-      let colName = ob.field;
       const dotIdx = ob.field.indexOf('.');
-      if (dotIdx >= 0) {
-        const table = ob.field.substring(0, dotIdx).toLowerCase();
-        colName = table + '_' + ob.field.substring(dotIdx + 1);
-      }
+      const colName = dotIdx >= 0 ? ob.field.substring(dotIdx + 1) : ob.field;
       const va = a[colName] != null ? a[colName] : '';
       const vb = b[colName] != null ? b[colName] : '';
       if (va < vb) return ob.dir === 'DESC' ? 1 : -1;
@@ -396,35 +383,25 @@ function projectColumns(rows, parsed) {
   if (cols.length === 0) return rows;
   if (cols.length === 1 && cols[0].name === '*' && !cols[0].table) return rows;
 
+  // Determine if any column is a star
+  const hasStar = cols.some(c => c.name === '*');
+
   return rows.map(row => {
-    const result = {};
+    // If star present, start with all fields; otherwise empty
+    const result = hasStar ? { ...row } : {};
     for (const col of cols) {
-      if (col.name === '*') {
-        for (const [key, value] of Object.entries(row)) {
-          if (!key.includes('_')) {
-            result[key] = value;
-          }
-        }
-        continue;
-      }
-      
-      let srcCol;
-      if (col.table) {
-        srcCol = col.table + '_' + col.name;
+      if (col.name === '*') continue; // star already handled by spread
+      if (col.alias) {
+        const dotIdx = col.name.indexOf('.');
+        const srcCol = dotIdx >= 0 ? col.name.substring(dotIdx + 1) : col.name;
+        const prefixedCol = dotIdx >= 0 ? col.name.substring(0, dotIdx).toLowerCase() + '_' + srcCol : null;
+        result[col.alias] = row[prefixedCol] !== undefined ? row[prefixedCol] : row[srcCol] !== undefined ? row[srcCol] : row[col.name];
       } else {
         const dotIdx = col.name.indexOf('.');
-        if (dotIdx >= 0) {
-          const table = col.name.substring(0, dotIdx).toLowerCase();
-          srcCol = table + '_' + col.name.substring(dotIdx + 1);
-        } else {
-          srcCol = col.name;
-        }
+        const srcCol = dotIdx >= 0 ? col.name.substring(dotIdx + 1) : col.name;
+        const prefixedCol = dotIdx >= 0 ? col.name.substring(0, dotIdx).toLowerCase() + '_' + srcCol : null;
+        result[srcCol] = row[prefixedCol] !== undefined ? row[prefixedCol] : row[srcCol] !== undefined ? row[srcCol] : row[col.name];
       }
-      
-      const destCol = col.alias || col.name;
-      const finalDestCol = destCol.includes('.') ? destCol.substring(destCol.indexOf('.') + 1) : destCol;
-      
-      result[finalDestCol] = row[srcCol] !== undefined ? row[srcCol] : row[col.name];
     }
     return result;
   });
@@ -442,12 +419,14 @@ function executeJoin(parsed, params) {
     for (const leftRow of mainData) {
       for (const rightRow of joinData) {
         if (leftRow[leftCol] === rightRow[rightCol]) {
-          const merged = {};
+          const merged = { ...leftRow };
           for (const [key, value] of Object.entries(rightRow)) {
-            merged[join.table + '_' + key] = value;
-          }
-          for (const [key, value] of Object.entries(leftRow)) {
-            merged[parsed.mainTable + '_' + key] = value;
+            if (key === rightCol) continue;
+            if (merged[key] !== undefined && key !== leftCol) {
+              merged[join.table + '_' + key] = value;
+            } else {
+              merged[key] = value;
+            }
           }
           newRows.push(merged);
         }

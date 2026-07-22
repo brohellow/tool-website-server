@@ -56,11 +56,6 @@ const Community = () => {
     fetchData();
   }, []);
   
-  // 根据工具ID获取工具信息（从数据库数据中查找）
-  const getToolInfo = (toolId: string) => {
-    return featuredTools.find((tool) => tool.id === toolId);
-  };
-  
   // 获取状态标签样式
   const getStatusStyle = (status: string) => {
     switch (status) {
@@ -154,8 +149,7 @@ const Community = () => {
                 <div className="space-y-4">
                   {comments.length > 0 ? (
                     comments.map((comment) => {
-                      const tool = getToolInfo(comment.tool_id);
-                      if (!tool) return null;
+                      const tool = comment.tool || { name: '未知工具', id: comment.tool_id };
                       
                       return (
                         <div key={comment.id} className="glass-card p-6">

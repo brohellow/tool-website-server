@@ -36,6 +36,11 @@ export interface Comment {
   created_at: string;       // 评论创建时间
   user?: User;              // 用户信息（可选，用于关联查询）
   tool_name?: string;       // 工具名称（用于关联查询）
+  tool?: {                  // 工具信息（可选，用于关联查询）
+    id: string;
+    name: string;
+    icon?: string;
+  };
 }
 
 // 收藏类型定义

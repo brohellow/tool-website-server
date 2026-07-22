@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useStore } from '../store/useStore';
 import { io, Socket } from 'socket.io-client';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://tool-website-backend.onrender.com';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 interface Equipment {
   weapon: { name: string; type: string } | null;
