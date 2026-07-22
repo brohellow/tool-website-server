@@ -31,18 +31,10 @@ const socketRoomMap = new Map();
 
 const verificationCodes = new Map();
 
-console.log('[SMTP配置]', {
-  host: process.env.SMTP_HOST,
-  port: process.env.SMTP_PORT,
-  secure: process.env.SMTP_SECURE,
-  user: process.env.SMTP_USER ? '已配置' : '未配置',
-  pass: process.env.SMTP_PASS ? '已配置' : '未配置',
-});
-
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.qq.com',
-  port: parseInt(process.env.SMTP_PORT || '587'),
-  secure: process.env.SMTP_SECURE === 'true',
+  port: parseInt(process.env.SMTP_PORT || '465'),
+  secure: process.env.SMTP_SECURE === 'false' ? false : true,
   auth: {
     user: process.env.SMTP_USER || '',
     pass: process.env.SMTP_PASS || '',
