@@ -16,6 +16,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import GameLobby from './pages/GameLobby';
 import GameRoom from './pages/GameRoom';
+import Chat from './pages/Chat';
 
 function App() {
   // 获取全局状态和方法
@@ -94,6 +95,9 @@ function App() {
             
             {/* 三国杀游戏房间 */}
             <Route path="/game/:id" element={<GameRoom />} />
+            
+            {/* 聊天室页面 */}
+            <Route path="/chat" element={<Chat />} />
           </Routes>
         </main>
         

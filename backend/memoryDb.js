@@ -12,6 +12,7 @@ let comments = [];
 let favorites = [];
 let toolViews = [];
 let searchHistory = [];
+let chatMessages = [];
 
 // ============== Data accessor by table name ==============
 function getStore(table) {
@@ -22,6 +23,7 @@ function getStore(table) {
     case 'favorites': return favorites;
     case 'tool_views': return toolViews;
     case 'search_history': return searchHistory;
+    case 'chat_messages': return chatMessages;
     default: return null;
   }
 }
@@ -38,6 +40,7 @@ function loadData() {
       favorites = parsed.favorites || [];
       toolViews = parsed.tool_views || [];
       searchHistory = parsed.search_history || [];
+      chatMessages = parsed.chat_messages || [];
       console.log('从文件加载数据成功');
       return true;
     }
@@ -60,6 +63,7 @@ function saveData() {
       favorites,
       tool_views: toolViews,
       search_history: searchHistory,
+      chat_messages: chatMessages,
       saved_at: new Date().toISOString(),
     };
     fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));

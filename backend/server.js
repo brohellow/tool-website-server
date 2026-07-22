@@ -746,6 +746,56 @@ app.get('/api/logs', (req, res) => {
   }
 });
 
+app.get('/api/chat/messages', authenticateToken, (req, res) => {
+  try {
+    const messages = db.prepare(`
+      SELECT chat_messages.id, chat_messages.user_id, chat_messages.content, chat_messages.created_at,
+             users.username, users.avatar_url
+      FROM chat_messages
+      JOIN users ON chat_messages.user_id = users.id
+      ORDER BY chat_messages.created_at DESC
+      LIMIT 100
+    `).all();
+    
+    res.json(messages.reverse());
+  } catch (error) {
+    console.error('获取聊天消息失败:', error);
+    res.status(500).json({ error: '获取聊天消息失败' });
+  }
+});
+
+app.post('/api/chat/messages', authenticateToken, (req, res) => {
+  const { content } = req.body;
+  
+  if (!content || content.trim() === '') {
+    return res.status(400).json({ error: '消息内容不能为空' });
+  }
+
+  try {
+    const messageId = uuidv4();
+    const createdAt = new Date().toISOString();
+    
+    db.prepare(
+      'INSERT INTO chat_messages (id, user_id, content, created_at) VALUES (?, ?, ?, ?)'
+    ).run(messageId, req.user.id, content.trim(), createdAt);
+
+    const message = db.prepare(`
+      SELECT chat_messages.id, chat_messages.user_id, chat_messages.content, chat_messages.created_at,
+             users.username, users.avatar_url
+      FROM chat_messages
+      JOIN users ON chat_messages.user_id = users.id
+      WHERE chat_messages.id = ?
+    `).get(messageId);
+
+    io.emit('chat message', message);
+
+    res.json(message);
+  } catch (error) {
+    console.error('发送消息失败:', error);
+    res.status(500).json({ error: '发送消息失败' });
+  }
+});
+
 app.get('/', (req, res) => {
   if (isProduction) {
     const indexPath = path.join(__dirname, '../dist', 'index.html');

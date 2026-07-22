@@ -91,3 +91,12 @@ export interface ToolHistory {
   last_used: string;        // 最后使用时间
   usage_count: number;      // 使用次数
 }
+
+// 聊天消息类型定义
+export interface ChatMessage {
+  id: string;               // 消息唯一标识
+  user_id: string;          // 发送消息的用户 ID
+  content: string;          // 消息内容
+  created_at: string;       // 消息创建时间
+  user?: User;              // 用户信息（可选，用于关联查询）
+}

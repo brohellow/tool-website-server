@@ -1,4 +1,4 @@
-import { User } from '../types';
+import { User, ChatMessage } from '../types';
 
 const API_BASE_URL = '';
 
@@ -376,4 +376,33 @@ export const changePassword = async (userId: string, currentPassword: string, ne
   }
   
   return result;
+};
+
+export const getChatMessages = async (): Promise<ChatMessage[]> => {
+  const response = await fetch(`${API_BASE_URL}/api/chat/messages`, {
+    method: 'GET',
+    headers: getHeaders(),
+  });
+  
+  if (!response.ok) {
+    throw new Error('获取聊天消息失败');
+  }
+  
+  return await response.json();
+};
+
+export const sendChatMessage = async (content: string): Promise<ChatMessage> => {
+  const response = await fetch(`${API_BASE_URL}/api/chat/messages`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({ content }),
+  });
+  
+  const data = await response.json();
+  
+  if (!response.ok) {
+    throw new Error(data.error || '发送消息失败');
+  }
+  
+  return data;
 };
