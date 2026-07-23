@@ -166,10 +166,6 @@ app.use(express.static(distPath, {
   etag: true,
 }));
 
-app.get('*', (req, res) => {
-  res.sendFile(path.join(distPath, 'index.html'));
-});
-
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -1226,11 +1222,15 @@ app.use((err, req, res, next) => {
 });
 
 app.use((req, res) => {
-  res.status(404).json({
-    error: '请求的资源不存在',
-    status: 404,
-    timestamp: new Date().toISOString(),
-  });
+  if (req.path.startsWith('/api')) {
+    res.status(404).json({
+      error: '请求的资源不存在',
+      status: 404,
+      timestamp: new Date().toISOString(),
+    });
+  } else {
+    res.sendFile(path.join(distPath, 'index.html'));
+  }
 });
 
 async function startServer() {
