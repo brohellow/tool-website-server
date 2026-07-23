@@ -403,53 +403,51 @@ const Home = () => {
       {/* 天气预报区域 */}
       <section className="py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="glass-card rounded-xl overflow-hidden">
-            <div className="grid md:grid-cols-2 gap-6">
-              {/* 上层：当前城市和今天天气 */}
-              <div className="p-4 text-center">
-                <div className="flex items-center justify-center gap-2 mb-2">
-                  <input
-                    type="text"
-                    value={weatherCity}
-                    onChange={(e) => setWeatherCity(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleCityChange(e.currentTarget.value)}
-                    className="bg-transparent border-b border-primary-500/30 px-1 py-0.5 text-sm font-semibold text-white focus:outline-none focus:border-primary-500 text-center w-20"
-                    placeholder="城市"
-                  />
-                  {locationStatus === 'loading' && (
-                    <div className="w-4 h-4 border-2 border-primary-500/30 border-t-primary-500 rounded-full animate-spin" />
-                  )}
-                </div>
-                {weatherLoading ? (
-                  <div className="w-8 h-8 border-3 border-primary-500/30 border-t-primary-500 rounded-full animate-spin mx-auto" />
-                ) : weatherData && weatherData.forecast && weatherData.forecast.length > 0 ? (
-                  <>
-                    <div className="text-3xl mb-1">{getWeatherEmoji(weatherData.forecast[0].desc)}</div>
-                    <div className="text-2xl font-bold text-white">{weatherData.forecast[0].maxTemp}</div>
-                    <div className="text-gray-400 text-xs">{weatherData.forecast[0].desc}</div>
-                  </>
-                ) : (
-                  <div className="text-gray-400 text-xs">暂无数据</div>
+          <div className="glass-card rounded-xl overflow-hidden max-w-md mx-auto">
+            {/* 上层：当前城市和今天天气 */}
+            <div className="p-4 text-center">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <input
+                  type="text"
+                  value={weatherCity}
+                  onChange={(e) => setWeatherCity(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleCityChange(e.currentTarget.value)}
+                  className="bg-transparent border-b border-primary-500/30 px-1 py-0.5 text-sm font-semibold text-white focus:outline-none focus:border-primary-500 text-center w-20"
+                  placeholder="城市"
+                />
+                {locationStatus === 'loading' && (
+                  <div className="w-4 h-4 border-2 border-primary-500/30 border-t-primary-500 rounded-full animate-spin" />
                 )}
               </div>
-              
-              {/* 下层：滚动播放未来天气 */}
-              <div className="p-4 bg-dark-800/50">
-                <h4 className="text-gray-400 text-xs mb-3">未来天气</h4>
-                {weatherData && weatherData.forecast && weatherData.forecast.length > 1 ? (
-                  <div className="flex overflow-hidden">
-                    <div className="flex animate-scroll">
-                      {[...weatherData.forecast.slice(1), ...weatherData.forecast.slice(1)].map((day, index) => (
-                        <div key={index} className="flex-shrink-0 w-14 mx-1.5 bg-dark-700/50 rounded-lg p-2 text-center">
-                          <div className="text-gray-400 text-xs mb-0.5">{formatDate(day.date)}</div>
-                          <div className="text-lg mb-0.5">{getWeatherEmoji(day.desc)}</div>
-                          <div className="text-white text-xs">{day.maxTemp}</div>
-                        </div>
-                      ))}
-                    </div>
+              {weatherLoading ? (
+                <div className="w-8 h-8 border-3 border-primary-500/30 border-t-primary-500 rounded-full animate-spin mx-auto" />
+              ) : weatherData && weatherData.forecast && weatherData.forecast.length > 0 ? (
+                <>
+                  <div className="text-3xl mb-1">{getWeatherEmoji(weatherData.forecast[0].desc)}</div>
+                  <div className="text-2xl font-bold text-white">{weatherData.forecast[0].maxTemp}</div>
+                  <div className="text-gray-400 text-xs">{weatherData.forecast[0].desc}</div>
+                </>
+              ) : (
+                <div className="text-gray-400 text-xs">暂无数据</div>
+              )}
+            </div>
+            
+            {/* 下层：滚动播放未来天气 */}
+            <div className="px-4 pb-4 pt-2 bg-dark-800/50">
+              <h4 className="text-gray-400 text-xs mb-3 text-center">未来天气</h4>
+              {weatherData && weatherData.forecast && weatherData.forecast.length > 1 ? (
+                <div className="flex overflow-hidden">
+                  <div className="flex animate-scroll">
+                    {[...weatherData.forecast.slice(1), ...weatherData.forecast.slice(1)].map((day, index) => (
+                      <div key={index} className="flex-shrink-0 w-14 mx-1.5 bg-dark-700/50 rounded-lg p-2 text-center">
+                        <div className="text-gray-400 text-xs mb-0.5">{formatDate(day.date)}</div>
+                        <div className="text-lg mb-0.5">{getWeatherEmoji(day.desc)}</div>
+                        <div className="text-white text-xs">{day.maxTemp}</div>
+                      </div>
+                    ))}
                   </div>
-                ) : null}
-              </div>
+                </div>
+              ) : null}
             </div>
           </div>
         </div>
