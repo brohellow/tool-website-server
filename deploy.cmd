@@ -30,6 +30,27 @@ if exist "C:\Program Files (x86)\nodejs\node.exe" set "NODE_PATH=C:\Program File
 if exist "C:\nodejs\node.exe" set "NODE_PATH=C:\nodejs"
 if exist "D:\nodejs\node.exe" set "NODE_PATH=D:\nodejs"
 if exist "D:\zx\nodejs\node.exe" set "NODE_PATH=D:\zx\nodejs"
+if exist "D:\zx\nodejs\node.exe" set "NODE_PATH=D:\zx\nodejs"
+if exist "E:\nodejs\node.exe" set "NODE_PATH=E:\nodejs"
+if exist "F:\nodejs\node.exe" set "NODE_PATH=F:\nodejs"
+if exist "%USERPROFILE%\AppData\Roaming\npm\node_modules\node\node.exe" set "NODE_PATH=%USERPROFILE%\AppData\Roaming\npm\node_modules\node"
+if exist "%LOCALAPPDATA%\nvs-npm\node.exe" set "NODE_PATH=%LOCALAPPDATA%\vs-npm"
+
+REM 尝试从注册表获取（64位系统）
+if not defined NODE_PATH (
+    for /f "tokens=2*" %%a in ('reg query "HKLM\SOFTWARE\Node.js" /v "InstallPath" 2^>nul') do (
+        set "NODE_PATH=%%b"
+        goto :node_found
+    )
+)
+
+REM 尝试从注册表获取（32位系统）
+if not defined NODE_PATH (
+    for /f "tokens=2*" %%a in ('reg query "HKLM\SOFTWARE\WOW6432Node\Node.js" /v "InstallPath" 2^>nul') do (
+        set "NODE_PATH=%%b"
+        goto :node_found
+    )
+)
 
 REM 尝试从环境变量获取
 if not defined NODE_PATH (
@@ -40,11 +61,24 @@ if not defined NODE_PATH (
     )
 )
 
+REM 尝试从PATH中查找
+if not defined NODE_PATH (
+    for %%e in (%PATH%) do (
+        if exist "%%e\node.exe" (
+            set "NODE_PATH=%%e"
+            goto :node_found
+        )
+    )
+)
+
 :node_found
 
 if not defined NODE_PATH (
     echo [ERROR] 未找到 Node.js，请先安装 Node.js
     echo 下载地址: https://nodejs.org/
+    echo.
+    echo 如果已安装，请在CMD中执行以下命令查看安装路径：
+    echo where node
     pause
     exit /b 1
 )
