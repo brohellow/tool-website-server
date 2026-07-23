@@ -69,10 +69,10 @@ const Header = () => {
   
   return (
     <header 
-      className="fixed top-0 left-0 right-0 z-50 glass-card transition-transform duration-300 ease-in-out"
+      className="fixed top-0 left-0 right-0 z-50 glass-card transition-transform duration-300 ease-in-out md:transition-transform"
       onMouseEnter={() => setIsExpanded(true)}
       onMouseLeave={() => setIsExpanded(false)}
-      style={{ transform: isExpanded ? 'translateY(0)' : 'translateY(calc(-100% + 40px))' }}
+      style={{ transform: isExpanded || window.innerWidth < 768 ? 'translateY(0)' : 'translateY(calc(-100% + 40px))' }}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
