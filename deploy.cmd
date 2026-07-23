@@ -30,11 +30,12 @@ if exist "C:\Program Files (x86)\nodejs\node.exe" set "NODE_PATH=C:\Program File
 if exist "C:\nodejs\node.exe" set "NODE_PATH=C:\nodejs"
 if exist "D:\nodejs\node.exe" set "NODE_PATH=D:\nodejs"
 if exist "D:\zx\nodejs\node.exe" set "NODE_PATH=D:\zx\nodejs"
-if exist "D:\zx\nodejs\node.exe" set "NODE_PATH=D:\zx\nodejs"
 if exist "E:\nodejs\node.exe" set "NODE_PATH=E:\nodejs"
 if exist "F:\nodejs\node.exe" set "NODE_PATH=F:\nodejs"
 if exist "%USERPROFILE%\AppData\Roaming\npm\node_modules\node\node.exe" set "NODE_PATH=%USERPROFILE%\AppData\Roaming\npm\node_modules\node"
-if exist "%LOCALAPPDATA%\nvs-npm\node.exe" set "NODE_PATH=%LOCALAPPDATA%\vs-npm"
+if exist "%LOCALAPPDATA%\vs-npm\node.exe" set "NODE_PATH=%LOCALAPPDATA%\vs-npm"
+REM 服务器上的 Node.js 路径
+if exist "C:\fwq\node-v24.18.0-win-x64\node.exe" set "NODE_PATH=C:\fwq\node-v24.18.0-win-x64"
 
 REM 尝试从注册表获取（64位系统）
 if not defined NODE_PATH (
