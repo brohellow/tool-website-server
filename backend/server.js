@@ -15,7 +15,6 @@ const rateLimit = require('express-rate-limit');
 const compression = require('compression');
 const { body, validationResult } = require('express-validator');
 const { db, initDatabase, getStore } = require('./memoryDb');
-const { GameEngine } = require('./gameEngine');
 
 const logsDir = path.join(__dirname, '../logs');
 const logFile = path.join(logsDir, 'server.log');
@@ -61,8 +60,6 @@ const io = new Server(server, {
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-here-change-in-production';
 
-const gameEngine = new GameEngine();
-const socketRoomMap = new Map();
 const userIdSocketMap = new Map();
 
 const apiLimiter = rateLimit({
@@ -163,6 +160,14 @@ const sendVerificationEmail = async (email, code) => {
 const distPath = path.join(__dirname, '../dist');
 app.use(express.static(distPath, {
   index: false,
+  dotfiles: 'deny',
+  maxAge: '1d',
+  etag: true,
+}));
+
+const nonamePath = path.join(__dirname, '../noname/apps/core');
+app.use('/sanguosha', express.static(nonamePath, {
+  index: 'index.html',
   dotfiles: 'deny',
   maxAge: '1d',
   etag: true,
@@ -754,34 +759,7 @@ app.put('/api/users/:id', authenticateToken, (req, res) => {
   }
 });
 
-app.get('/api/game/rooms', (req, res) => {
-  res.json(gameEngine.getAllRooms());
-});
 
-app.post('/api/game/create-room', authenticateToken, (req, res) => {
-  const { username } = req.body;
-  const roomId = gameEngine.createRoom(req.user.id, username);
-  res.json({ roomId });
-});
-
-app.post('/api/game/join-room', authenticateToken, (req, res) => {
-  const { roomId, username } = req.body;
-  const room = gameEngine.joinRoom(roomId, req.user.id, username);
-  if (room) {
-    res.json({ success: true, roomId });
-  } else {
-    res.status(400).json({ error: '无法加入房间' });
-  }
-});
-
-app.get('/api/game/room/:roomId', authenticateToken, (req, res) => {
-  const publicState = gameEngine.getPublicState(req.params.roomId);
-  if (publicState) {
-    res.json(publicState);
-  } else {
-    res.status(404).json({ error: '房间不存在' });
-  }
-});
 
 app.get('/healthz', (req, res) => {
   res.json({ status: 'ok' });
@@ -1229,141 +1207,12 @@ io.on('connection', (socket) => {
     console.log('匿名客户端连接:', socket.id);
   }
 
-  socket.on('join-room', ({ roomId, playerId, username }) => {
-    socket.join(roomId);
-    socketRoomMap.set(socket.id, roomId);
-    gameEngine.setSocketId(roomId, playerId, socket.id);
 
-    const publicState = gameEngine.getPublicState(roomId);
-    if (publicState) {
-      io.to(roomId).emit('room-update', publicState);
-
-      const privateState = gameEngine.getPrivateState(roomId, playerId);
-      if (privateState) {
-        socket.emit('private-state', privateState);
-      }
-    }
-  });
-
-  socket.on('toggle-ready', ({ roomId, playerId }) => {
-    const room = gameEngine.toggleReady(roomId, playerId);
-    if (room) {
-      const publicState = gameEngine.getPublicState(roomId);
-      io.to(roomId).emit('room-update', publicState);
-    }
-  });
-
-  socket.on('start-game', ({ roomId }) => {
-    const room = gameEngine.startGame(roomId);
-    if (room) {
-      const publicState = gameEngine.getPublicState(roomId);
-      io.to(roomId).emit('room-update', publicState);
-
-      room.players.forEach(player => {
-        if (player.socketId) {
-          const privateState = gameEngine.getPrivateState(roomId, player.id);
-          if (privateState) {
-            io.to(player.socketId).emit('private-state', privateState);
-          }
-        }
-      });
-    }
-  });
-
-  socket.on('select-warrior', ({ roomId, playerId, warriorId }) => {
-    const room = gameEngine.selectWarrior(roomId, playerId, warriorId);
-    if (room) {
-      const publicState = gameEngine.getPublicState(roomId);
-      io.to(roomId).emit('room-update', publicState);
-
-      room.players.forEach(player => {
-        if (player.socketId) {
-          const privateState = gameEngine.getPrivateState(roomId, player.id);
-          if (privateState) {
-            io.to(player.socketId).emit('private-state', privateState);
-          }
-        }
-      });
-    }
-  });
-
-  socket.on('play-card', ({ roomId, playerId, cardId, targetPlayerId }) => {
-    const result = gameEngine.playCard(roomId, playerId, cardId, targetPlayerId);
-
-    if (result && result.success) {
-      const publicState = gameEngine.getPublicState(roomId);
-      io.to(roomId).emit('room-update', publicState);
-
-      const privateState = gameEngine.getPrivateState(roomId, playerId);
-      if (privateState) {
-        socket.emit('private-state', privateState);
-      }
-
-      if (!result.targetDefended && targetPlayerId) {
-        setTimeout(() => {
-          gameEngine.takeDamage(roomId, targetPlayerId, 1);
-          const newPublicState = gameEngine.getPublicState(roomId);
-          io.to(roomId).emit('room-update', newPublicState);
-
-          const targetPrivateState = gameEngine.getPrivateState(roomId, targetPlayerId);
-          if (targetPrivateState) {
-            const targetSocket = Array.from(socketRoomMap.entries()).find(([_, rid]) => rid === roomId &&
-              gameEngine.getRoom(roomId)?.players.find(p => p.id === targetPlayerId)?.socketId === _);
-            if (targetSocket) {
-              io.to(targetSocket[0]).emit('private-state', targetPrivateState);
-            }
-          }
-        }, 1000);
-      }
-    } else {
-      socket.emit('play-card-error', result?.message || '出牌失败');
-    }
-  });
-
-  socket.on('end-turn', ({ roomId, playerId }) => {
-    const room = gameEngine.endTurn(roomId, playerId);
-    if (room) {
-      const publicState = gameEngine.getPublicState(roomId);
-      io.to(roomId).emit('room-update', publicState);
-
-      room.players.forEach(player => {
-        if (player.socketId) {
-          const privateState = gameEngine.getPrivateState(roomId, player.id);
-          if (privateState) {
-            io.to(player.socketId).emit('private-state', privateState);
-          }
-        }
-      });
-    }
-  });
-
-  socket.on('leave-room', ({ roomId, playerId }) => {
-    gameEngine.leaveRoom(roomId, playerId);
-    socket.leave(roomId);
-    socketRoomMap.delete(socket.id);
-
-    const publicState = gameEngine.getPublicState(roomId);
-    if (publicState) {
-      io.to(roomId).emit('room-update', publicState);
-    }
-  });
 
   socket.on('disconnect', () => {
     console.log('客户端断开连接:', socket.id);
     if (socket.user) {
       userIdSocketMap.delete(socket.user.id);
-    }
-    const roomId = socketRoomMap.get(socket.id);
-    if (roomId) {
-      gameEngine.setOffline(roomId, socket.id);
-      socketRoomMap.delete(socket.id);
-
-      const publicState = gameEngine.getPublicState(roomId);
-      if (publicState) {
-        io.to(roomId).emit('room-update', publicState);
-      }
-
-      socket.to(roomId).emit('peer-disconnected', { socketId: socket.id });
     }
   });
 

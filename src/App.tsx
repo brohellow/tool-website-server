@@ -16,8 +16,7 @@ const Profile = lazy(() => import('./pages/Profile'));
 const Community = lazy(() => import('./pages/Community'));
 const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
-const GameLobby = lazy(() => import('./pages/GameLobby'));
-const GameRoom = lazy(() => import('./pages/GameRoom'));
+
 const Chat = lazy(() => import('./pages/Chat'));
 
 function Loading() {
@@ -83,8 +82,7 @@ function App() {
               <Route path="/community" element={<Community />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
-              <Route path="/game" element={<GameLobby />} />
-              <Route path="/game/:id" element={<GameRoom />} />
+
               <Route path="/chat" element={<Chat />} />
             </Routes>
           </Suspense>

@@ -574,6 +574,58 @@ const Home = () => {
           )}
         </div>
       </section>
+      
+      {/* 三国杀游戏区域 */}
+      <section className="py-16 bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-8">
+            <h2 className="font-orbitron text-3xl md:text-4xl font-bold text-white mb-4">
+              🎮 三国杀
+            </h2>
+            <p className="text-gray-400">经典桌游，在线对战，无需下载</p>
+          </div>
+          
+          <div className="glass-card rounded-2xl overflow-hidden shadow-2xl">
+            <div className="relative" style={{ height: '600px' }}>
+              <iframe
+                src="/sanguosha"
+                title="三国杀"
+                className="w-full h-full border-0"
+                sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+              />
+              <div className="absolute top-4 right-4 bg-dark-900/80 backdrop-blur-sm px-4 py-2 rounded-lg">
+                <span className="text-sm text-gray-300">点击进入游戏</span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="mt-6 flex justify-center gap-4">
+            <div className="flex items-center gap-2 text-gray-400 text-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 3h6v6"/>
+                <path d="M9 21H3v-6"/>
+                <path d="M21 3l-7 7"/>
+                <path d="M3 21l7-7"/>
+              </svg>
+              <span>支持身份场、国战、1v1等模式</span>
+            </div>
+            <div className="flex items-center gap-2 text-gray-400 text-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+              </svg>
+              <span>数百名武将，丰富扩展包</span>
+            </div>
+            <div className="flex items-center gap-2 text-gray-400 text-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
+              <span>零配置，即开即玩</span>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 };

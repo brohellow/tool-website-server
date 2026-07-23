@@ -5,4 +5,5 @@ release/
 *.log
 backend/database.sqlite
 electron/dist/
-node_modules
+noname/
+dist/
