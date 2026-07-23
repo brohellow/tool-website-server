@@ -258,107 +258,99 @@ const Home = () => {
         
         {/* 内容区域 */}
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col lg:flex-row items-center justify-center gap-8">
-            {/* 左侧：天气预报 */}
-            <div className="hidden lg:block w-48 shrink-0">
-              <div className="glass-card rounded-xl overflow-hidden">
-                {/* 上层：当前城市和今天天气 */}
-                <div className="p-4 text-center">
-                  <div className="flex items-center justify-center gap-2 mb-2">
-                    <input
-                      type="text"
-                      value={weatherCity}
-                      onChange={(e) => setWeatherCity(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleCityChange(e.currentTarget.value)}
-                      className="bg-transparent border-b border-primary-500/30 px-1 py-0.5 text-sm font-semibold text-white focus:outline-none focus:border-primary-500 text-center w-20"
-                      placeholder="城市"
-                    />
-                    {locationStatus === 'loading' && (
-                      <div className="w-4 h-4 border-2 border-primary-500/30 border-t-primary-500 rounded-full animate-spin" />
-                    )}
-                  </div>
-                  {weatherLoading ? (
-                    <div className="w-8 h-8 border-3 border-primary-500/30 border-t-primary-500 rounded-full animate-spin mx-auto" />
-                  ) : weatherData && weatherData.forecast && weatherData.forecast.length > 0 ? (
-                    <>
-                      <div className="text-3xl mb-1">{getWeatherEmoji(weatherData.forecast[0].desc)}</div>
-                      <div className="text-2xl font-bold text-white">{weatherData.forecast[0].maxTemp}</div>
-                      <div className="text-gray-400 text-xs">{weatherData.forecast[0].desc}</div>
-                    </>
-                  ) : (
-                    <div className="text-gray-400 text-xs">暂无数据</div>
+          {/* 左侧：天气预报（absolute定位，不影响居中） */}
+          <div className="hidden lg:block absolute left-8 top-1/2 -translate-y-1/2 w-48">
+            <div className="glass-card rounded-xl overflow-hidden">
+              {/* 上层：当前城市和今天天气 */}
+              <div className="p-4 text-center">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={weatherCity}
+                    onChange={(e) => setWeatherCity(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleCityChange(e.currentTarget.value)}
+                    className="bg-transparent border-b border-primary-500/30 px-1 py-0.5 text-sm font-semibold text-white focus:outline-none focus:border-primary-500 text-center w-20"
+                    placeholder="城市"
+                  />
+                  {locationStatus === 'loading' && (
+                    <div className="w-4 h-4 border-2 border-primary-500/30 border-t-primary-500 rounded-full animate-spin" />
                   )}
                 </div>
-                
-                {/* 下层：滚动播放未来天气 */}
-                <div className="px-3 pb-3 pt-1 bg-dark-800/50">
-                  {weatherData && weatherData.forecast && weatherData.forecast.length > 1 ? (
-                    <div className="flex overflow-hidden">
-                      <div className="flex animate-scroll">
-                        {[...weatherData.forecast.slice(1), ...weatherData.forecast.slice(1)].map((day, index) => (
-                          <div key={index} className="flex-shrink-0 w-14 mx-1.5 bg-dark-700/50 rounded-lg p-2 text-center">
-                            <div className="text-gray-400 text-xs mb-0.5">{formatDate(day.date)}</div>
-                            <div className="text-lg mb-0.5">{getWeatherEmoji(day.desc)}</div>
-                            <div className="text-white text-xs">{day.maxTemp}</div>
-                          </div>
-                        ))}
-                      </div>
+                {weatherLoading ? (
+                  <div className="w-8 h-8 border-3 border-primary-500/30 border-t-primary-500 rounded-full animate-spin mx-auto" />
+                ) : weatherData && weatherData.forecast && weatherData.forecast.length > 0 ? (
+                  <>
+                    <div className="text-3xl mb-1">{getWeatherEmoji(weatherData.forecast[0].desc)}</div>
+                    <div className="text-2xl font-bold text-white">{weatherData.forecast[0].maxTemp}</div>
+                    <div className="text-gray-400 text-xs">{weatherData.forecast[0].desc}</div>
+                  </>
+                ) : (
+                  <div className="text-gray-400 text-xs">暂无数据</div>
+                )}
+              </div>
+              
+              {/* 下层：滚动播放未来天气 */}
+              <div className="px-3 pb-3 pt-1 bg-dark-800/50">
+                {weatherData && weatherData.forecast && weatherData.forecast.length > 1 ? (
+                  <div className="flex overflow-hidden">
+                    <div className="flex animate-scroll">
+                      {[...weatherData.forecast.slice(1), ...weatherData.forecast.slice(1)].map((day, index) => (
+                        <div key={index} className="flex-shrink-0 w-14 mx-1.5 bg-dark-700/50 rounded-lg p-2 text-center">
+                          <div className="text-gray-400 text-xs mb-0.5">{formatDate(day.date)}</div>
+                          <div className="text-lg mb-0.5">{getWeatherEmoji(day.desc)}</div>
+                          <div className="text-white text-xs">{day.maxTemp}</div>
+                        </div>
+                      ))}
                     </div>
-                  ) : null}
-                </div>
+                  </div>
+                ) : null}
               </div>
             </div>
+          </div>
+          
+          {/* 主要内容（居中） */}
+          <div className="text-center max-w-3xl mx-auto">
+            {/* 标题 */}
+            <h1 className="font-orbitron text-3xl sm:text-4xl md:text-6xl font-bold mb-4 md:mb-6">
+              <span className="gradient-text">创意工具</span>
+              <br />
+              <span className="text-gray-800 dark:text-white">触手可及</span>
+            </h1>
             
-            {/* 右侧：主要内容 */}
-            <div className="text-center max-w-3xl">
-              {/* 标题 */}
-              <h1 className="font-orbitron text-3xl sm:text-4xl md:text-6xl font-bold mb-4 md:mb-6">
-                <span className="gradient-text">创意工具</span>
-                <br />
-                <span className="text-gray-800 dark:text-white">触手可及</span>
-              </h1>
-              
-              {/* 副标题 */}
-              <p className="text-gray-500 dark:text-gray-400 text-base sm:text-lg md:text-xl mb-6 md:mb-10 px-4">
-                汇集多种实用在线工具，为您提供便捷高效的服务体验
-              </p>
-              
-              {/* CTA 按钮 */}
-              <div className="flex flex-col sm:flex-row justify-center space-y-3 sm:space-y-0 sm:space-x-4 px-4">
-                <Link 
-                  to="/tools/开发工具" 
-                  className="btn-primary text-center py-3 sm:py-4"
-                >
-                  浏览全部工具
-                </Link>
-                <Link 
-                  to="/community" 
-                  className="border border-primary-500/50 text-primary-400 px-6 py-3 sm:py-4 rounded-xl hover:bg-primary-500/10 transition-all text-center"
-                >
-                  加入社区
-                </Link>
+            {/* 副标题 */}
+            <p className="text-gray-500 dark:text-gray-400 text-base sm:text-lg md:text-xl mb-6 md:mb-10 px-4">
+              汇集多种实用在线工具，为您提供便捷高效的服务体验
+            </p>
+            
+            {/* CTA 按钮 */}
+            <div className="flex justify-center px-4">
+              <Link 
+                to="/tools/开发工具" 
+                className="btn-primary text-center py-3 sm:py-4 px-8"
+              >
+                浏览全部工具
+              </Link>
+            </div>
+            
+            {/* 统计数据 */}
+            <div className="grid grid-cols-3 gap-4 md:gap-8 mt-10 md:mt-16 px-4">
+              <div>
+                <div className="text-2xl sm:text-3xl md:text-4xl font-bold gradient-text mb-1 md:mb-2">
+                  {tools.length}
+                </div>
+                <div className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm">实用工具</div>
               </div>
-              
-              {/* 统计数据 */}
-              <div className="grid grid-cols-3 gap-4 md:gap-8 mt-10 md:mt-16 px-4">
-                <div>
-                  <div className="text-2xl sm:text-3xl md:text-4xl font-bold gradient-text mb-1 md:mb-2">
-                    {tools.length}
-                  </div>
-                  <div className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm">实用工具</div>
+              <div>
+                <div className="text-2xl sm:text-3xl md:text-4xl font-bold gradient-text mb-1 md:mb-2">
+                  50k+
                 </div>
-                <div>
-                  <div className="text-2xl sm:text-3xl md:text-4xl font-bold gradient-text mb-1 md:mb-2">
-                    50k+
-                  </div>
-                  <div className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm">用户使用</div>
+                <div className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm">用户使用</div>
+              </div>
+              <div>
+                <div className="text-2xl sm:text-3xl md:text-4xl font-bold gradient-text mb-1 md:mb-2">
+                  {categories.length}
                 </div>
-                <div>
-                  <div className="text-2xl sm:text-3xl md:text-4xl font-bold gradient-text mb-1 md:mb-2">
-                    {categories.length}
-                  </div>
-                  <div className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm">工具分类</div>
-                </div>
+                <div className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm">工具分类</div>
               </div>
             </div>
           </div>
