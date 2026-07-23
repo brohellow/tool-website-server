@@ -44,6 +44,14 @@ const log = (level, message, meta = {}) => {
 const app = express();
 const server = http.createServer(app);
 
+// 添加自定义MIME类型映射，修复.ts文件被识别为视频文件的问题
+express.static.mime.define({
+  'application/javascript': ['js', 'mjs', 'cjs'],
+  'text/javascript': ['js'],
+  'application/typescript': ['ts'],
+  'text/typescript': ['ts'],
+});
+
 const allowedOrigins = process.env.CORS_ORIGIN 
   ? process.env.CORS_ORIGIN.split(',') 
   : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://20111108.xyz'];
