@@ -1,7 +1,7 @@
 // 工具详情页面组件
 // 包含工具展示、交互界面、评论区和收藏功能（从数据库获取真实数据）
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useStore } from '../store/useStore';
 import { getToolById, getComments, addComment, addFavorite, removeFavorite, isFavorite, incrementUsageCount, likeComment } from '../utils/api';
@@ -97,7 +97,7 @@ const ToolPage = () => {
   // 文本对比工具的状态
   const [textCompareLeft, setTextCompareLeft] = useState('');
   const [textCompareRight, setTextCompareRight] = useState('');
-  const [textCompareResult, setTextCompareResult] = useState<string[][]>([]);
+  const [textCompareResult, setTextCompareResult] = useState<{ left: { char: string; isDiff: boolean }[]; right: { char: string; isDiff: boolean }[]; status: string }[]>([]);
   
   // UUID生成器工具的状态
   const [uuidCount, setUuidCount] = useState(1);
@@ -506,16 +506,32 @@ const ToolPage = () => {
     reader.readAsDataURL(imageFile);
   };
   
-  // 文本对比处理
+  // 文本对比处理 - 字符级差异高亮
+  const highlightDiff = (text: string, compareText: string) => {
+    const highlighted: { char: string; isDiff: boolean }[] = [];
+    const maxLen = Math.max(text.length, compareText.length);
+    for (let i = 0; i < maxLen; i++) {
+      const char = text[i] || '';
+      const compareChar = compareText[i] || '';
+      highlighted.push({ char, isDiff: char !== compareChar });
+    }
+    return highlighted;
+  };
+  
   const handleTextCompare = () => {
     const leftLines = textCompareLeft.split('\n');
     const rightLines = textCompareRight.split('\n');
     const maxLen = Math.max(leftLines.length, rightLines.length);
-    const result: string[][] = [];
+    const result: { left: { char: string; isDiff: boolean }[]; right: { char: string; isDiff: boolean }[]; status: string }[] = [];
     for (let i = 0; i < maxLen; i++) {
       const left = leftLines[i] || '';
       const right = rightLines[i] || '';
-      result.push([left, right, left === right ? 'same' : 'diff']);
+      const isSame = left === right;
+      result.push({
+        left: highlightDiff(left, right),
+        right: highlightDiff(right, left),
+        status: isSame ? 'same' : 'diff'
+      });
     }
     setTextCompareResult(result);
     incrementUsageCount(id || '');
@@ -546,13 +562,13 @@ const ToolPage = () => {
   const handleIpLookup = async () => {
     if (!ipAddress.trim()) return;
     try {
-      const response = await fetch(`https://ipapi.co/${ipAddress}/json/`);
+      const response = await fetch(`/api/ip-lookup/${encodeURIComponent(ipAddress)}`);
       const data = await response.json();
       setIpInfo({
-        ip: data.ip,
-        country: data.country_name || data.country_code,
-        city: data.city,
-        isp: data.org,
+        ip: data.ip || ipAddress,
+        country: data.country || '未知',
+        city: data.city || '未知',
+        isp: data.isp || '未知',
       });
       incrementUsageCount(id || '');
     } catch {
@@ -619,22 +635,19 @@ const ToolPage = () => {
   // 网络延迟测试处理
   const handlePingTest = async () => {
     setPingRunning(true);
-    const results: { target: string; latency: number; status: string }[] = [];
-    for (const target of pingTargets) {
-      const start = performance.now();
-      try {
-        await fetch(`https://${target}`, { mode: 'no-cors' });
-      } catch {}
-      const end = performance.now();
-      results.push({
+    try {
+      const response = await fetch(`/api/ping-test?targets=${encodeURIComponent(JSON.stringify(pingTargets))}`);
+      const results = await response.json();
+      setPingResults(results);
+      incrementUsageCount(id || '');
+    } catch {
+      setPingResults(pingTargets.map(target => ({
         target,
-        latency: Math.round(end - start),
-        status: '在线',
-      });
+        latency: 0,
+        status: '测试失败',
+      })));
     }
-    setPingResults(results);
     setPingRunning(false);
-    incrementUsageCount(id || '');
   };
   
   // 字数统计处理
@@ -676,18 +689,22 @@ const ToolPage = () => {
   };
   
   // 计时器处理
-  let stopwatchInterval: ReturnType<typeof setInterval> | null = null;
+  const stopwatchIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   
   const handleStopwatchStart = () => {
+    if (stopwatchIntervalRef.current) return;
     setStopwatchRunning(true);
-    stopwatchInterval = setInterval(() => {
+    stopwatchIntervalRef.current = setInterval(() => {
       setStopwatchTime(t => t + 10);
     }, 10);
   };
   
   const handleStopwatchStop = () => {
     setStopwatchRunning(false);
-    if (stopwatchInterval) clearInterval(stopwatchInterval);
+    if (stopwatchIntervalRef.current) {
+      clearInterval(stopwatchIntervalRef.current);
+      stopwatchIntervalRef.current = null;
+    }
   };
   
   const handleStopwatchReset = () => {
@@ -2100,15 +2117,23 @@ const ToolPage = () => {
                   <div>
                     <h4 className="text-gray-400 mb-4">对比结果</h4>
                     <div className="bg-dark-700/50 border border-dark-600 rounded-xl overflow-hidden">
-                      {textCompareResult.map(([left, right, status], i) => (
-                        <div key={i} className={`flex border-b border-dark-600 last:border-b-0 ${status === 'diff' ? 'bg-red-500/10' : 'bg-dark-600/30'}`}>
+                      {textCompareResult.map((item, i) => (
+                        <div key={i} className={`flex border-b border-dark-600 last:border-b-0 ${item.status === 'diff' ? 'bg-red-500/10' : 'bg-dark-600/30'}`}>
                           <div className="flex-1 p-3 border-r border-dark-600 font-mono text-sm">
                             <span className="text-gray-500 mr-2">{i + 1}</span>
-                            <span className={status === 'diff' ? 'text-red-400' : 'text-white'}>{left || ' '}</span>
+                            {item.left.map((charInfo, j) => (
+                              <span key={j} className={charInfo.isDiff ? 'text-red-400 bg-red-500/30' : 'text-white'}>
+                                {charInfo.char || ' '}
+                              </span>
+                            ))}
                           </div>
                           <div className="flex-1 p-3 font-mono text-sm">
                             <span className="text-gray-500 mr-2">{i + 1}</span>
-                            <span className={status === 'diff' ? 'text-green-400' : 'text-white'}>{right || ' '}</span>
+                            {item.right.map((charInfo, j) => (
+                              <span key={j} className={charInfo.isDiff ? 'text-green-400 bg-green-500/30' : 'text-white'}>
+                                {charInfo.char || ' '}
+                              </span>
+                            ))}
                           </div>
                         </div>
                       ))}

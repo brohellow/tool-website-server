@@ -787,6 +787,76 @@ app.get('/healthz', (req, res) => {
   res.json({ status: 'ok' });
 });
 
+app.get('/api/ip-lookup/:ip', async (req, res) => {
+  const { ip } = req.params;
+  try {
+    const https = require('https');
+    return new Promise((resolve) => {
+      https.get(`https://ipapi.co/${ip}/json/`, (response) => {
+        let data = '';
+        response.on('data', (chunk) => {
+          data += chunk;
+        });
+        response.on('end', () => {
+          try {
+            const result = JSON.parse(data);
+            res.json({
+              ip: result.ip || ip,
+              country: result.country_name || result.country_code || '未知',
+              city: result.city || '未知',
+              isp: result.org || result.asn || '未知',
+            });
+          } catch {
+            res.json({ ip, country: '未知', city: '未知', isp: '未知' });
+          }
+          resolve();
+        });
+      }).on('error', () => {
+        res.json({ ip, country: '未知', city: '未知', isp: '未知' });
+        resolve();
+      });
+    });
+  } catch {
+    res.json({ ip, country: '未知', city: '未知', isp: '未知' });
+  }
+});
+
+app.get('/api/ping-test', async (req, res) => {
+  const targets = req.query.targets ? JSON.parse(req.query.targets) : ['baidu.com', 'google.com', 'github.com'];
+  const https = require('https');
+  
+  const results = await Promise.all(targets.map((target) => {
+    return new Promise((resolve) => {
+      const start = Date.now();
+      https.get(`https://${target}`, { timeout: 5000 }, (response) => {
+        const end = Date.now();
+        response.destroy();
+        resolve({
+          target,
+          latency: end - start,
+          status: '在线',
+        });
+      }).on('error', () => {
+        const end = Date.now();
+        resolve({
+          target,
+          latency: end - start,
+          status: '离线',
+        });
+      }).setTimeout(5000, () => {
+        const end = Date.now();
+        resolve({
+          target,
+          latency: end - start,
+          status: '超时',
+        });
+      });
+    });
+  }));
+  
+  res.json(results);
+});
+
 app.get('/api/version', (req, res) => {
   res.json({ version: '2.0.0', apiUrl: '/api', timestamp: new Date().toISOString() });
 });
