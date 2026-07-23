@@ -6,4 +6,3 @@ release/
 backend/database.sqlite
 electron/dist/
 dist/
-noname/
