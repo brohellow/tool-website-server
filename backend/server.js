@@ -20,7 +20,7 @@ const { GameEngine } = require('./gameEngine');
 const logsDir = path.join(__dirname, '../logs');
 const logFile = path.join(logsDir, 'server.log');
 
-const isProduction = process.env.NODE_ENV === 'production';
+const isProduction = process.env.NODE_ENV !== 'development';
 
 if (!fs.existsSync(logsDir)) {
   fs.mkdirSync(logsDir, { recursive: true });
