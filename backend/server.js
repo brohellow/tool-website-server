@@ -46,10 +46,8 @@ const server = http.createServer(app);
 
 // 添加自定义MIME类型映射，修复.ts文件被识别为视频文件的问题
 express.static.mime.define({
-  'application/javascript': ['js', 'mjs', 'cjs'],
-  'text/javascript': ['js'],
-  'application/typescript': ['ts'],
-  'text/typescript': ['ts'],
+  'application/javascript': ['js', 'mjs', 'cjs', 'ts'],
+  'text/javascript': ['js', 'ts'],
 });
 
 const allowedOrigins = process.env.CORS_ORIGIN 
@@ -174,7 +172,17 @@ app.use(express.static(distPath, {
 }));
 
 const nonamePath = path.join(__dirname, '../noname/dist');
-app.use('/sanguosha', express.static(nonamePath, {
+
+// 自定义中间件：为.ts文件设置正确的MIME类型
+const tsMimeMiddleware = (req, res, next) => {
+  if (req.path.endsWith('.ts')) {
+    res.setHeader('Content-Type', 'application/javascript');
+  }
+  next();
+};
+
+// 使用自定义中间件处理无名杀游戏资源
+app.use('/sanguosha', tsMimeMiddleware, express.static(nonamePath, {
   index: 'index.html',
   dotfiles: 'deny',
   maxAge: '1d',
@@ -184,7 +192,7 @@ app.use('/sanguosha', express.static(nonamePath, {
 // 无名杀游戏资源路由 - 用于支持index.html中的绝对路径引用
 app.use('/noname.js', express.static(path.join(__dirname, '../noname/dist/noname.js')));
 app.use('/service-worker.js', express.static(path.join(__dirname, '../noname/dist/service-worker.js')));
-app.use('/jit-test.ts', express.static(path.join(__dirname, '../noname/dist/jit-test.ts')));
+app.use('/jit-test.ts', tsMimeMiddleware, express.static(path.join(__dirname, '../noname/dist/jit-test.ts')));
 app.use('/card', express.static(path.join(__dirname, '../noname/dist/card')));
 app.use('/character', express.static(path.join(__dirname, '../noname/dist/character')));
 app.use('/font', express.static(path.join(__dirname, '../noname/dist/font')));
@@ -192,8 +200,8 @@ app.use('/game', express.static(path.join(__dirname, '../noname/dist/game')));
 app.use('/layout', express.static(path.join(__dirname, '../noname/dist/layout')));
 app.use('/mode', express.static(path.join(__dirname, '../noname/dist/mode')));
 app.use('/node_modules', express.static(path.join(__dirname, '../noname/dist/node_modules')));
-app.use('/noname', express.static(path.join(__dirname, '../noname/dist/noname')));
-app.use('/src', express.static(path.join(__dirname, '../noname/dist/src')));
+app.use('/noname', tsMimeMiddleware, express.static(path.join(__dirname, '../noname/dist/noname')));
+app.use('/src', tsMimeMiddleware, express.static(path.join(__dirname, '../noname/dist/src')));
 app.use('/theme', express.static(path.join(__dirname, '../noname/dist/theme')));
 app.use('/_virtual', express.static(path.join(__dirname, '../noname/dist/_virtual')));
 
