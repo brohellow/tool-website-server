@@ -173,6 +173,22 @@ app.use('/sanguosha', express.static(nonamePath, {
   etag: true,
 }));
 
+// 无名杀游戏资源路由 - 用于支持index.html中的绝对路径引用
+app.use('/noname.js', express.static(path.join(__dirname, '../noname/dist/noname.js')));
+app.use('/service-worker.js', express.static(path.join(__dirname, '../noname/dist/service-worker.js')));
+app.use('/jit-test.ts', express.static(path.join(__dirname, '../noname/dist/jit-test.ts')));
+app.use('/card', express.static(path.join(__dirname, '../noname/dist/card')));
+app.use('/character', express.static(path.join(__dirname, '../noname/dist/character')));
+app.use('/font', express.static(path.join(__dirname, '../noname/dist/font')));
+app.use('/game', express.static(path.join(__dirname, '../noname/dist/game')));
+app.use('/layout', express.static(path.join(__dirname, '../noname/dist/layout')));
+app.use('/mode', express.static(path.join(__dirname, '../noname/dist/mode')));
+app.use('/node_modules', express.static(path.join(__dirname, '../noname/dist/node_modules')));
+app.use('/noname', express.static(path.join(__dirname, '../noname/dist/noname')));
+app.use('/src', express.static(path.join(__dirname, '../noname/dist/src')));
+app.use('/theme', express.static(path.join(__dirname, '../noname/dist/theme')));
+app.use('/_virtual', express.static(path.join(__dirname, '../noname/dist/_virtual')));
+
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
