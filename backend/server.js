@@ -1009,12 +1009,7 @@ app.get('/', (req, res) => {
   }
 });
 
-if (isProduction) {
-  app.get('*', (req, res) => {
-    const indexPath = path.join(__dirname, '../dist', 'index.html');
-    res.sendFile(indexPath);
-  });
-}
+
 
 io.use((socket, next) => {
   const token = socket.handshake.auth.token;
