@@ -19,6 +19,50 @@ if not exist "%ProjectDir%" (
 
 cd /d "%ProjectDir%"
 
+REM ========== 检测 Node.js 路径 ==========
+echo [INFO] 检测 Node.js 安装路径...
+
+set "NODE_PATH="
+
+REM 尝试常见的 Node.js 安装路径
+if exist "C:\Program Files\nodejs\node.exe" set "NODE_PATH=C:\Program Files\nodejs"
+if exist "C:\Program Files (x86)\nodejs\node.exe" set "NODE_PATH=C:\Program Files (x86)\nodejs"
+if exist "C:\nodejs\node.exe" set "NODE_PATH=C:\nodejs"
+if exist "D:\nodejs\node.exe" set "NODE_PATH=D:\nodejs"
+if exist "D:\zx\nodejs\node.exe" set "NODE_PATH=D:\zx\nodejs"
+
+REM 尝试从环境变量获取
+if not defined NODE_PATH (
+    for /f "tokens=*" %%i in ('where node 2^>nul') do (
+        set "NODE_PATH=%%~dpi"
+        set "NODE_PATH=!NODE_PATH:~0,-1!"
+        goto :node_found
+    )
+)
+
+:node_found
+
+if not defined NODE_PATH (
+    echo [ERROR] 未找到 Node.js，请先安装 Node.js
+    echo 下载地址: https://nodejs.org/
+    pause
+    exit /b 1
+)
+
+echo [INFO] 找到 Node.js: %NODE_PATH%
+set "PATH=%NODE_PATH%;%PATH%"
+
+REM 验证 Node.js 和 npm
+echo [INFO] Node.js 版本:
+node --version
+
+echo [INFO] npm 版本:
+npm --version
+
+echo.
+
+REM ========== 开始部署 ==========
+
 echo [STEP 1] 拉取最新代码...
 git pull origin main
 
