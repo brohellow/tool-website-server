@@ -173,7 +173,14 @@ const ToolPage = () => {
   
   // 天气预报工具的状态
   const [weatherCity, setWeatherCity] = useState('');
-  const [weatherData, setWeatherData] = useState<{ city?: string; temp?: string; desc?: string; humidity?: string; wind?: string } | null>(null);
+  const [weatherData, setWeatherData] = useState<{ 
+    city?: string; 
+    temp?: string; 
+    desc?: string; 
+    humidity?: string; 
+    wind?: string;
+    forecast?: { date: string; minTemp: string; maxTemp: string; desc: string; humidity: string; wind: string }[];
+  } | null>(null);
   
   // 从数据库获取数据（并行请求优化）
   useEffect(() => {
@@ -791,39 +798,74 @@ const ToolPage = () => {
     incrementUsageCount(id || '');
   };
   
+  const getWeatherEmoji = (desc: string) => {
+    if (desc.includes('晴')) return '☀️';
+    if (desc.includes('云')) return '☁️';
+    if (desc.includes('雨')) return '🌧️';
+    if (desc.includes('雪')) return '❄️';
+    if (desc.includes('雷')) return '⛈️';
+    if (desc.includes('雾')) return '🌫️';
+    if (desc.includes('阴')) return '☁️';
+    return '🌤️';
+  };
+  
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const today = new Date();
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    if (date.toDateString() === today.toDateString()) return '今天';
+    if (date.toDateString() === tomorrow.toDateString()) return '明天';
+    
+    const weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+    return weekDays[date.getDay()];
+  };
+  
   // 天气预报查询处理
   const handleWeatherCheck = async () => {
     if (!weatherCity.trim()) return;
     try {
-      const response = await fetch(`/api/weather/${encodeURIComponent(weatherCity)}`);
+      const response = await fetch(`/api/weather-forecast/${encodeURIComponent(weatherCity)}`);
       const data = await response.json();
-      if (data.city) {
+      if (data.error) {
+        setWeatherData({ 
+          city: weatherCity,
+          temp: '',
+          desc: data.message || data.error,
+          humidity: '',
+          wind: '',
+          forecast: [],
+        });
+      } else if (data.city && data.forecast && data.forecast.length > 0) {
+        const today = data.forecast[0];
         setWeatherData({
           city: data.city,
-          temp: data.temp,
-          desc: data.desc || '未知',
-          humidity: data.humidity,
-          wind: data.wind,
+          temp: today.maxTemp,
+          desc: today.desc,
+          humidity: today.humidity,
+          wind: today.wind,
+          forecast: data.forecast,
         });
       } else {
-        const mockData = {
+        setWeatherData({ 
           city: weatherCity,
-          temp: '25°C',
-          desc: '晴朗',
-          humidity: '60%',
-          wind: '3 m/s',
-        };
-        setWeatherData(mockData);
+          temp: '',
+          desc: '无法获取天气数据',
+          humidity: '',
+          wind: '',
+          forecast: [],
+        });
       }
     } catch {
-      const mockData = {
+      setWeatherData({ 
         city: weatherCity,
-        temp: '25°C',
-        desc: '晴朗',
-        humidity: '60%',
-        wind: '3 m/s',
-      };
-      setWeatherData(mockData);
+        temp: '',
+        desc: '网络请求失败，请稍后重试',
+        humidity: '',
+        wind: '',
+        forecast: [],
+      });
     }
     incrementUsageCount(id || '');
   };
@@ -2940,43 +2982,89 @@ const ToolPage = () => {
                     </button>
                   </div>
                   {weatherData ? (
-                    <div className="glass-card p-8">
-                      <div className="flex items-center justify-between mb-6">
-                        <div>
-                          <h4 className="text-2xl font-bold text-white">{weatherData.city}</h4>
-                          <p className="text-gray-400">{weatherData.desc}</p>
-                        </div>
-                        <div className="text-6xl">
-                          {(weatherData.temp || '').includes('晴') || (weatherData.desc || '').includes('晴') ? '☀️' :
-                           (weatherData.desc || '').includes('云') ? '☁️' :
-                           (weatherData.desc || '').includes('雨') ? '🌧️' :
-                           (weatherData.desc || '').includes('雪') ? '❄️' : '🌤️'}
-                        </div>
-                      </div>
-                      <div className="text-5xl font-bold text-white mb-6">{weatherData.temp}</div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-dark-700/50 rounded-xl p-4">
-                          <div className="flex items-center gap-2 text-gray-400 mb-1">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
-                            </svg>
-                            湿度
+                    weatherData.temp ? (
+                      <div className="space-y-6">
+                        <div className="glass-card p-8">
+                          <div className="flex items-center justify-between mb-6">
+                            <div>
+                              <h4 className="text-2xl font-bold text-white">{weatherData.city}</h4>
+                              <p className="text-gray-400">{weatherData.desc}</p>
+                            </div>
+                            <div className="text-6xl">
+                              {getWeatherEmoji(weatherData.desc || '')}
+                            </div>
                           </div>
-                          <div className="text-xl font-semibold text-white">{weatherData.humidity}</div>
-                        </div>
-                        <div className="bg-dark-700/50 rounded-xl p-4">
-                          <div className="flex items-center gap-2 text-gray-400 mb-1">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/>
-                              <path d="M9.6 4.6A2 2 0 1 1 11 8H2"/>
-                              <path d="M12.6 19.4A2 2 0 1 0 14 16H2"/>
-                            </svg>
-                            风速
+                          <div className="text-5xl font-bold text-white mb-6">{weatherData.temp}</div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-dark-700/50 rounded-xl p-4">
+                              <div className="flex items-center gap-2 text-gray-400 mb-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
+                                </svg>
+                                湿度
+                              </div>
+                              <div className="text-xl font-semibold text-white">{weatherData.humidity}</div>
+                            </div>
+                            <div className="bg-dark-700/50 rounded-xl p-4">
+                              <div className="flex items-center gap-2 text-gray-400 mb-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/>
+                                  <path d="M9.6 4.6A2 2 0 1 1 11 8H2"/>
+                                  <path d="M12.6 19.4A2 2 0 1 0 14 16H2"/>
+                                </svg>
+                                风速
+                              </div>
+                              <div className="text-xl font-semibold text-white">{weatherData.wind}</div>
+                            </div>
                           </div>
-                          <div className="text-xl font-semibold text-white">{weatherData.wind}</div>
                         </div>
+                        
+                        {weatherData.forecast && weatherData.forecast.length > 1 && (
+                          <div className="glass-card p-6">
+                            <h4 className="text-lg font-semibold text-white mb-4">未来天气</h4>
+                            <div className="space-y-3">
+                              {weatherData.forecast.slice(1).map((day, index) => (
+                                <div key={index} className="flex items-center justify-between py-3 border-b border-dark-600/50 last:border-b-0">
+                                  <div className="flex items-center gap-4">
+                                    <div className="text-gray-400">
+                                      {formatDate(day.date)}
+                                    </div>
+                                    <div className="text-2xl">
+                                      {getWeatherEmoji(day.desc)}
+                                    </div>
+                                    <div className="text-white">
+                                      {day.desc}
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-3">
+                                    <div className="text-gray-400 text-sm">{day.minTemp}</div>
+                                    <div className="w-16 h-1 bg-dark-600 rounded-full overflow-hidden">
+                                      <div 
+                                        className="h-full bg-gradient-to-r from-blue-400 to-red-400"
+                                        style={{ width: `${((parseInt(day.maxTemp) - parseInt(day.minTemp)) / 20) * 100}%` }}
+                                      />
+                                    </div>
+                                    <div className="text-white font-semibold">{day.maxTemp}</div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    </div>
+                    ) : (
+                      <div className="glass-card p-8 text-center">
+                        <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-400">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="15" y1="9" x2="9" y2="15"/>
+                            <line x1="9" y1="9" x2="15" y2="15"/>
+                          </svg>
+                        </div>
+                        <h4 className="text-xl font-semibold text-white mb-2">{weatherData.city}</h4>
+                        <p className="text-red-400">{weatherData.desc}</p>
+                      </div>
+                    )
                   ) : (
                     <div className="text-center py-12">
                       <div className="w-20 h-20 rounded-full bg-dark-600/50 flex items-center justify-center mx-auto mb-4">
