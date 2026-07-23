@@ -3,6 +3,11 @@ const fs = require('fs');
 const path = require('path');
 
 const DATA_FILE = path.join(__dirname, '../data/db.json');
+const TEMP_FILE = path.join(__dirname, '../data/db.json.tmp');
+const LOCK_FILE = path.join(__dirname, '../data/db.lock');
+
+let writeQueue = [];
+let isWriting = false;
 
 // ============== In-memory data stores ==============
 // 内存数据库实现，用于 Node v24 兼容性
@@ -49,45 +54,91 @@ function loadData() {
     }
   } catch (err) {
     console.error('加载数据失败:', err);
+    try {
+      if (fs.existsSync(TEMP_FILE)) {
+        fs.renameSync(TEMP_FILE, DATA_FILE);
+        console.log('从临时文件恢复数据成功');
+        return loadData();
+      }
+    } catch (recoverErr) {
+      console.error('数据恢复失败:', recoverErr);
+    }
   }
   return false;
 }
 
 function saveData() {
-  try {
-    const dataDir = path.dirname(DATA_FILE);
-    if (!fs.existsSync(dataDir)) {
-      fs.mkdirSync(dataDir, { recursive: true });
+  return new Promise((resolve) => {
+    writeQueue.push({ resolve });
+    
+    if (!isWriting) {
+      processWriteQueue();
     }
-    const data = {
-      users,
-      tools,
-      comments,
-      favorites,
-      tool_views: toolViews,
-      search_history: searchHistory,
-      chat_messages: chatMessages,
-      private_messages: privateMessages,
-      saved_at: new Date().toISOString(),
-    };
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
-    console.log('数据保存成功');
-  } catch (err) {
-    console.error('保存数据失败:', err);
+  });
+}
+
+async function processWriteQueue() {
+  isWriting = true;
+  
+  while (writeQueue.length > 0) {
+    const item = writeQueue.shift();
+    
+    try {
+      const dataDir = path.dirname(DATA_FILE);
+      if (!fs.existsSync(dataDir)) {
+        fs.mkdirSync(dataDir, { recursive: true });
+      }
+      
+      const data = {
+        users,
+        tools,
+        comments,
+        favorites,
+        tool_views: toolViews,
+        search_history: searchHistory,
+        chat_messages: chatMessages,
+        private_messages: privateMessages,
+        saved_at: new Date().toISOString(),
+      };
+      
+      fs.writeFileSync(TEMP_FILE, JSON.stringify(data, null, 2));
+      fs.renameSync(TEMP_FILE, DATA_FILE);
+      
+      console.log('数据保存成功');
+      item.resolve(true);
+    } catch (err) {
+      console.error('保存数据失败:', err);
+      item.resolve(false);
+    }
   }
+  
+  isWriting = false;
 }
 
 function setupAutoSave() {
-  setInterval(saveData, 60000);
+  setInterval(() => {
+    saveData().catch(err => console.error('自动保存失败:', err));
+  }, 60000);
   
-  process.on('SIGINT', () => {
-    saveData();
+  const gracefulShutdown = async (signal) => {
+    console.log(`收到 ${signal} 信号，正在保存数据...`);
+    await saveData();
+    console.log('数据保存完成，退出进程');
     process.exit(0);
+  };
+  
+  process.on('SIGINT', gracefulShutdown);
+  process.on('SIGTERM', gracefulShutdown);
+  
+  process.on('uncaughtException', async (err) => {
+    console.error('未捕获的异常:', err);
+    await saveData();
+    process.exit(1);
   });
   
-  process.on('SIGTERM', () => {
-    saveData();
-    process.exit(0);
+  process.on('unhandledRejection', async (reason, promise) => {
+    console.error('未处理的 Promise 拒绝:', reason);
+    await saveData();
   });
 }
 

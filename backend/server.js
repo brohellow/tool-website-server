@@ -10,6 +10,10 @@ const http = require('http');
 const { Server } = require('socket.io');
 const nodemailer = require('nodemailer');
 const fs = require('fs');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const compression = require('compression');
+const { body, validationResult } = require('express-validator');
 const { db, initDatabase, getStore } = require('./memoryDb');
 const { GameEngine } = require('./gameEngine');
 
@@ -20,10 +24,15 @@ if (!fs.existsSync(logsDir)) {
   fs.mkdirSync(logsDir, { recursive: true });
 }
 
-const log = (message) => {
+const log = (level, message, meta = {}) => {
   const timestamp = new Date().toISOString();
-  const logLine = `[${timestamp}] ${message}\n`;
-  console.log(message);
+  const metaStr = Object.keys(meta).length > 0 ? ` ${JSON.stringify(meta)}` : '';
+  const logLine = `[${timestamp}] [${level.toUpperCase()}] ${message}${metaStr}\n`;
+  if (level === 'error') {
+    console.error(`[${timestamp}] [ERROR] ${message}`, meta);
+  } else {
+    console.log(`[${timestamp}] [${level.toUpperCase()}] ${message}`);
+  }
   try {
     fs.appendFileSync(logFile, logLine);
   } catch (e) {
@@ -33,9 +42,14 @@ const log = (message) => {
 
 const app = express();
 const server = http.createServer(app);
+
+const allowedOrigins = process.env.CORS_ORIGIN 
+  ? process.env.CORS_ORIGIN.split(',') 
+  : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://20111108.xyz'];
+
 const io = new Server(server, {
   cors: {
-    origin: '*',
+    origin: allowedOrigins,
     methods: ['GET', 'POST'],
     transports: ['websocket', 'polling'],
   },
@@ -48,6 +62,49 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-here-change-in-pro
 const gameEngine = new GameEngine();
 const socketRoomMap = new Map();
 const userIdSocketMap = new Map();
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: { error: '请求过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: '认证请求过于频繁，请稍后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "*"],
+      fontSrc: ["'self'", "data:"],
+      connectSrc: ["'self'", "*"],
+    },
+  },
+}));
+
+app.use(compression());
+
+app.use(cors({
+  origin: allowedOrigins,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  credentials: true,
+}));
+
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+app.use('/api/', apiLimiter);
+app.use('/api/auth/', authLimiter);
 
 const verificationCodes = new Map();
 
@@ -101,15 +158,17 @@ const sendVerificationEmail = async (email, code) => {
   }
 };
 
-app.use(cors());
-app.use(express.json());
+const distPath = path.join(__dirname, '../dist');
+app.use(express.static(distPath, {
+  index: false,
+  dotfiles: 'deny',
+  maxAge: '1d',
+  etag: true,
+}));
 
-const isProduction = true;
-
-if (isProduction) {
-  const distPath = path.join(__dirname, '../dist');
-  app.use(express.static(distPath));
-}
+app.get('*', (req, res) => {
+  res.sendFile(path.join(distPath, 'index.html'));
+});
 
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -1146,14 +1205,54 @@ io.on('connection', (socket) => {
   });
 });
 
+app.use((err, req, res, next) => {
+  log('error', '服务器错误', {
+    error: err.message,
+    stack: err.stack,
+    path: req.path,
+    method: req.method,
+    ip: req.ip,
+  });
+  
+  if (res.headersSent) {
+    return next(err);
+  }
+  
+  const statusCode = err.statusCode || 500;
+  const message = process.env.NODE_ENV === 'production' 
+    ? '服务器内部错误' 
+    : err.message;
+  
+  res.status(statusCode).json({
+    error: message,
+    status: statusCode,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+app.use((req, res) => {
+  res.status(404).json({
+    error: '请求的资源不存在',
+    status: 404,
+    timestamp: new Date().toISOString(),
+  });
+});
+
 async function startServer() {
   initDatabase();
   return new Promise((resolve) => {
     const httpServer = server.listen(PORT, () => {
-      console.log(`服务器运行在 http://localhost:${PORT}`);
-      console.log(`WebSocket 运行在 ws://localhost:${PORT}`);
-      console.log(`环境: ${isProduction ? '生产' : '开发'}`);
+      log('info', `服务器运行在 http://localhost:${PORT}`);
+      log('info', `WebSocket 运行在 ws://localhost:${PORT}`);
+      log('info', `环境: ${process.env.NODE_ENV === 'production' ? '生产' : '开发'}`);
+      log('info', `CORS允许来源: ${allowedOrigins.join(', ')}`);
       resolve(httpServer);
+    });
+    
+    httpServer.on('error', (err) => {
+      log('error', '服务器启动失败', { error: err.message });
+      console.error('服务器启动失败:', err);
+      process.exit(1);
     });
   });
 }

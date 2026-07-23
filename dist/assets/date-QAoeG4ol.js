@@ -1,0 +1,1 @@
+const r=t=>{if(!t)return"-";const e=new Date(t);return isNaN(e.getTime())?"-":e.toLocaleDateString("zh-CN",{year:"numeric",month:"long",day:"numeric"})},n=t=>{if(!t)return"-";const e=new Date(t);return isNaN(e.getTime())?"-":e.toLocaleString("zh-CN",{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"})};export{n as a,r as f};

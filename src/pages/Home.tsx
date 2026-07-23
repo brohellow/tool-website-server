@@ -1,7 +1,7 @@
 // 首页组件
 // 包含 Hero 区域、工具分类、精选工具和工具列表
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useStore } from '../store/useStore';
 import { icons } from '../assets/icons';
@@ -10,8 +10,10 @@ import ToolCard from '../components/ToolCard';
 import { Tool, Category } from '../types';
 
 const Home = () => {
-  // 获取搜索关键词
-  const { searchQuery } = useStore();
+  const { searchQuery, setSearchQuery, searchHistory, addSearchHistory, clearSearchHistory } = useStore();
+  const [showSearchHistory, setShowSearchHistory] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
   
   // 工具列表状态（从数据库获取）
   const [tools, setTools] = useState<Tool[]>([]);
@@ -75,6 +77,30 @@ const Home = () => {
   useEffect(() => {
     handleSearch(searchQuery);
   }, [searchQuery]);
+  
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+        setShowSearchHistory(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+  
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      addSearchHistory(searchQuery.trim());
+    }
+    setShowSearchHistory(false);
+  };
+  
+  const handleHistoryClick = (query: string) => {
+    setSearchQuery(query);
+    addSearchHistory(query);
+    setShowSearchHistory(false);
+  };
   
   // 加载状态
   if (loading) {
@@ -267,6 +293,74 @@ const Home = () => {
             {featuredTools.map((tool) => (
               <ToolCard key={tool.id} tool={tool} featured />
             ))}
+          </div>
+        </div>
+      </section>
+      
+      {/* 搜索区域 */}
+      <section className="py-8 bg-light-100/30 dark:bg-dark-800/30">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div ref={searchContainerRef} className="relative">
+            <form onSubmit={handleSearchSubmit}>
+              <div className="relative">
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder="搜索工具..."
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setShowSearchHistory(e.target.value === '');
+                  }}
+                  onFocus={() => setShowSearchHistory(true)}
+                  className="w-full bg-white/80 dark:bg-dark-700/80 border border-primary-500/30 rounded-xl py-3 pl-12 pr-4 text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition-all text-lg"
+                />
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  width="24" 
+                  height="24" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  strokeWidth="2" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round"
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+                >
+                  <circle cx="11" cy="11" r="8"/>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+              </div>
+            </form>
+            
+            {showSearchHistory && searchHistory.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-2 glass-card border-primary-500/20 shadow-xl">
+                <div className="p-2">
+                  <div className="flex items-center justify-between px-3 py-2">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">搜索历史</span>
+                    <button
+                      onClick={clearSearchHistory}
+                      className="text-xs text-primary-400 hover:text-primary-500"
+                    >
+                      清空
+                    </button>
+                  </div>
+                  {searchHistory.map((query, index) => (
+                    <button
+                      key={index}
+                      onClick={() => handleHistoryClick(query)}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-primary-500/10 text-gray-700 dark:text-gray-300 transition-colors flex items-center gap-2"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400">
+                        <circle cx="11" cy="11" r="8"/>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                      </svg>
+                      {query}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </section>
