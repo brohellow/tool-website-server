@@ -897,93 +897,87 @@ app.get('/api/weather/:city', async (req, res) => {
   }
 });
 
+const fetchWeatherByGeocode = (city) => {
+  return new Promise((resolve) => {
+    const https = require('https');
+    https.get(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=zh&format=json`, (geoResponse) => {
+      let geoData = '';
+      geoResponse.on('data', (chunk) => { geoData += chunk; });
+      geoResponse.on('end', () => {
+        try {
+          const geoResult = JSON.parse(geoData);
+          if (geoResult.results && geoResult.results.length > 0) {
+            const location = geoResult.results[0];
+            const lat = location.latitude;
+            const lon = location.longitude;
+            const cityName = location.name || location.country || city;
+            
+            https.get(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_min,temperature_2m_max,relative_humidity_2m_mean,wind_speed_10m_mean,weather_code&timezone=Asia/Shanghai&forecast_days=5`, (weatherResponse) => {
+              let weatherData = '';
+              weatherResponse.on('data', (chunk) => { weatherData += chunk; });
+              weatherResponse.on('end', () => {
+                try {
+                  const weatherResult = JSON.parse(weatherData);
+                  if (weatherResult.daily) {
+                    const weatherCodes = {
+                      0: '晴', 1: '晴', 2: '多云', 3: '阴',
+                      45: '雾', 48: '雾',
+                      51: '小雨', 53: '小雨', 55: '小雨',
+                      61: '雨', 63: '中雨', 65: '大雨',
+                      71: '雪', 73: '小雪', 75: '大雪',
+                      80: '阵雨', 81: '阵雨', 82: '强阵雨',
+                      95: '雷阵雨', 96: '雷阵雨', 99: '雷阵雨'
+                    };
+                    
+                    const forecast = weatherResult.daily.time.map((date, index) => {
+                      const code = weatherResult.daily.weather_code[index];
+                      return {
+                        date,
+                        minTemp: `${Math.round(weatherResult.daily.temperature_2m_min[index])}°C`,
+                        maxTemp: `${Math.round(weatherResult.daily.temperature_2m_max[index])}°C`,
+                        desc: weatherCodes[code] || '未知',
+                        humidity: `${Math.round(weatherResult.daily.relative_humidity_2m_mean[index])}%`,
+                        wind: `${weatherResult.daily.wind_speed_10m_mean[index].toFixed(1)} m/s`,
+                      };
+                    });
+                    
+                    resolve({ success: true, city: cityName, forecast });
+                  } else {
+                    resolve({ success: false });
+                  }
+                } catch {
+                  resolve({ success: false });
+                }
+              });
+            }).on('error', () => resolve({ success: false }));
+          } else {
+            resolve({ success: false });
+          }
+        } catch {
+          resolve({ success: false });
+        }
+      });
+    }).on('error', () => resolve({ success: false }));
+  });
+};
+
 app.get('/api/weather-forecast/:city', async (req, res) => {
   const { city } = req.params;
   
-  if (!process.env.WEATHER_API_KEY || process.env.WEATHER_API_KEY === 'demo') {
-    return res.status(401).json({ 
-      error: '请配置有效的天气API密钥', 
-      message: '请在服务器环境变量中设置 WEATHER_API_KEY' 
-    });
-  }
-  
   try {
-    const https = require('https');
-    return new Promise((resolve) => {
-      https.get(`https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(city)}&appid=${process.env.WEATHER_API_KEY}&units=metric&lang=zh_cn`, (response) => {
-        let data = '';
-        response.on('data', (chunk) => {
-          data += chunk;
-        });
-        response.on('end', () => {
-          try {
-            const result = JSON.parse(data);
-            if (result.cod === '401') {
-              return res.status(401).json({ 
-                error: '天气API密钥无效', 
-                message: '请检查 WEATHER_API_KEY 是否正确' 
-              });
-            }
-            if (result.cod === '404') {
-              return res.status(404).json({ 
-                error: '未找到该城市', 
-                message: '请尝试使用英文城市名，如 Beijing, Shanghai' 
-              });
-            }
-            if (result.list && result.list.length > 0) {
-              const dailyForecast = {};
-              result.list.forEach((item) => {
-                const date = item.dt_txt.split(' ')[0];
-                if (!dailyForecast[date]) {
-                  dailyForecast[date] = {
-                    date,
-                    temps: [],
-                    descs: [],
-                    humidity: [],
-                    wind: [],
-                  };
-                }
-                dailyForecast[date].temps.push(item.main.temp);
-                dailyForecast[date].descs.push(item.weather?.[0]?.description || '');
-                dailyForecast[date].humidity.push(item.main.humidity);
-                dailyForecast[date].wind.push(item.wind?.speed || 0);
-              });
-
-              const forecastList = Object.values(dailyForecast).map((day) => {
-                const temps = day.temps;
-                const minTemp = Math.round(Math.min(...temps));
-                const maxTemp = Math.round(Math.max(...temps));
-                const avgHumidity = Math.round(day.humidity.reduce((a, b) => a + b, 0) / day.humidity.length);
-                const avgWind = (day.wind.reduce((a, b) => a + b, 0) / day.wind.length).toFixed(1);
-                const desc = day.descs[Math.floor(day.descs.length / 2)] || day.descs[0] || '未知';
-
-                return {
-                  date: day.date,
-                  minTemp: `${minTemp}°C`,
-                  maxTemp: `${maxTemp}°C`,
-                  desc,
-                  humidity: `${avgHumidity}%`,
-                  wind: `${avgWind} m/s`,
-                };
-              }).slice(0, 5);
-
-              res.json({
-                city: result.city?.name || city,
-                forecast: forecastList,
-              });
-            } else {
-              res.status(404).json({ error: '未找到该城市的天气预报信息' });
-            }
-          } catch {
-            res.status(500).json({ error: '天气预报数据解析失败' });
-          }
-          resolve();
-        });
-      }).on('error', () => {
-        res.status(500).json({ error: '获取天气预报信息失败' });
-        resolve();
+    const result = await fetchWeatherByGeocode(city);
+    
+    if (result.success && result.forecast && result.forecast.length > 0) {
+      res.json({
+        city: result.city,
+        forecast: result.forecast,
       });
-    });
+    } else {
+      res.status(404).json({ 
+        error: '未找到该城市', 
+        message: '请尝试使用更精确的城市名称，如：北京、上海、郑州' 
+      });
+    }
   } catch {
     res.status(500).json({ error: '获取天气预报信息失败' });
   }

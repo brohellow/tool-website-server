@@ -2973,7 +2973,7 @@ const ToolPage = () => {
                       type="text"
                       value={weatherCity}
                       onChange={(e) => setWeatherCity(e.target.value)}
-                      placeholder="输入城市名称（如：Beijing, Shanghai）"
+                      placeholder="输入城市名称（如：北京、上海、郑州）"
                       className="flex-1 bg-dark-700/50 border border-dark-600 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary-500 transition-colors"
                       onKeyDown={(e) => e.key === 'Enter' && handleWeatherCheck()}
                     />
