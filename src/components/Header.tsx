@@ -1,7 +1,7 @@
 // 页面头部导航组件
 // 包含网站 Logo、导航链接、搜索框和用户菜单
 
-import { useState } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useStore } from '../store/useStore';
 import { signOut } from '../utils/api';
@@ -17,9 +17,36 @@ const Header = () => {
   // Header 收起/展开状态
   const [isExpanded, setIsExpanded] = useState(false);
   
-  // 处理搜索输入变化
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value);
+  // 中文输入法组合状态
+  const [isComposing, setIsComposing] = useState(false);
+  
+  // 防抖定时器引用
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  
+  // 处理搜索输入变化（带防抖和中文输入法支持）
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isComposing) return;
+    
+    const value = e.target.value;
+    
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+    
+    debounceRef.current = setTimeout(() => {
+      setSearchQuery(value);
+    }, 300);
+  }, [isComposing, setSearchQuery]);
+  
+  // 处理中文输入法开始
+  const handleCompositionStart = () => {
+    setIsComposing(true);
+  };
+  
+  // 处理中文输入法结束
+  const handleCompositionEnd = (e: React.CompositionEvent<HTMLInputElement>) => {
+    setIsComposing(false);
+    setSearchQuery(e.currentTarget.value);
   };
   
   // 处理搜索提交
@@ -105,6 +132,8 @@ const Header = () => {
                   placeholder="搜索工具..."
                   value={searchQuery}
                   onChange={handleSearchChange}
+                  onCompositionStart={handleCompositionStart}
+                  onCompositionEnd={handleCompositionEnd}
                   className="w-full bg-light-100/50 border border-primary-500/30 dark:bg-dark-700/50 rounded-xl py-2 pl-10 pr-4 text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition-all"
                 />
                 <svg 
@@ -229,6 +258,8 @@ const Header = () => {
                 placeholder="搜索工具..."
                 value={searchQuery}
                 onChange={handleSearchChange}
+                onCompositionStart={handleCompositionStart}
+                onCompositionEnd={handleCompositionEnd}
                 className="w-full bg-light-100/50 border border-primary-500/30 dark:bg-dark-700/50 rounded-xl py-2 pl-10 pr-4 text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:border-primary-500"
               />
             </form>

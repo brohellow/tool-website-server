@@ -12,8 +12,10 @@ import { Tool, Category } from '../types';
 const Home = () => {
   const { searchQuery, setSearchQuery, searchHistory, addSearchHistory, clearSearchHistory } = useStore();
   const [showSearchHistory, setShowSearchHistory] = useState(false);
+  const [isComposing, setIsComposing] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   // 工具列表状态（从数据库获取）
   const [tools, setTools] = useState<Tool[]>([]);
@@ -309,8 +311,21 @@ const Home = () => {
                   placeholder="搜索工具..."
                   value={searchQuery}
                   onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    setShowSearchHistory(e.target.value === '');
+                    if (isComposing) return;
+                    const value = e.target.value;
+                    if (debounceRef.current) {
+                      clearTimeout(debounceRef.current);
+                    }
+                    debounceRef.current = setTimeout(() => {
+                      setSearchQuery(value);
+                      setShowSearchHistory(value === '');
+                    }, 300);
+                  }}
+                  onCompositionStart={() => setIsComposing(true)}
+                  onCompositionEnd={(e) => {
+                    setIsComposing(false);
+                    setSearchQuery(e.currentTarget.value);
+                    setShowSearchHistory(e.currentTarget.value === '');
                   }}
                   onFocus={() => setShowSearchHistory(true)}
                   className="w-full bg-white/80 dark:bg-dark-700/80 border border-primary-500/30 rounded-xl py-3 pl-12 pr-4 text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition-all text-lg"

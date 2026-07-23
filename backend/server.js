@@ -857,6 +857,46 @@ app.get('/api/ping-test', async (req, res) => {
   res.json(results);
 });
 
+app.get('/api/weather/:city', async (req, res) => {
+  const { city } = req.params;
+  try {
+    const https = require('https');
+    return new Promise((resolve) => {
+      https.get(`https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&appid=${process.env.WEATHER_API_KEY || 'demo'}&units=metric&lang=zh_cn`, (response) => {
+        let data = '';
+        response.on('data', (chunk) => {
+          data += chunk;
+        });
+        response.on('end', () => {
+          try {
+            const result = JSON.parse(data);
+            if (result.main) {
+              res.json({
+                city: result.name,
+                temp: `${Math.round(result.main.temp)}°C`,
+                desc: result.weather?.[0]?.description || '未知',
+                humidity: `${result.main.humidity}%`,
+                wind: `${result.wind?.speed || 0} m/s`,
+                icon: result.weather?.[0]?.icon || '',
+              });
+            } else {
+              res.status(404).json({ error: '未找到该城市的天气信息' });
+            }
+          } catch {
+            res.status(500).json({ error: '天气数据解析失败' });
+          }
+          resolve();
+        });
+      }).on('error', () => {
+        res.status(500).json({ error: '获取天气信息失败' });
+        resolve();
+      });
+    });
+  } catch {
+    res.status(500).json({ error: '获取天气信息失败' });
+  }
+});
+
 app.get('/api/version', (req, res) => {
   res.json({ version: '2.0.0', apiUrl: '/api', timestamp: new Date().toISOString() });
 });

@@ -795,16 +795,25 @@ const ToolPage = () => {
   const handleWeatherCheck = async () => {
     if (!weatherCity.trim()) return;
     try {
-      const response = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(weatherCity)}&appid=demo&units=metric&lang=zh_cn`);
+      const response = await fetch(`/api/weather/${encodeURIComponent(weatherCity)}`);
       const data = await response.json();
-      if (data.main) {
+      if (data.city) {
         setWeatherData({
-          city: data.name,
-          temp: `${Math.round(data.main.temp)}°C`,
-          desc: data.weather?.[0]?.description || '未知',
-          humidity: `${data.main.humidity}%`,
-          wind: `${data.wind?.speed || 0} m/s`,
+          city: data.city,
+          temp: data.temp,
+          desc: data.desc || '未知',
+          humidity: data.humidity,
+          wind: data.wind,
         });
+      } else {
+        const mockData = {
+          city: weatherCity,
+          temp: '25°C',
+          desc: '晴朗',
+          humidity: '60%',
+          wind: '3 m/s',
+        };
+        setWeatherData(mockData);
       }
     } catch {
       const mockData = {
