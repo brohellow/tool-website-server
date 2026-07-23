@@ -398,7 +398,7 @@ function matchesWhere(row, whereClause, paramValue) {
 
   if (op === 'LIKE') {
     const pattern = String(paramValue).replace(/%/g, '.*').replace(/_/g, '.');
-    const re = new RegExp('^' + pattern + '$', 'i');
+    const re = new RegExp(pattern, 'i');
     return re.test(String(rowValue || ''));
   }
 
