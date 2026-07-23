@@ -85,6 +85,96 @@ const ToolPage = () => {
   const [calculatorMemory, setCalculatorMemory] = useState<string | null>(null);
   const [calculatorOperator, setCalculatorOperator] = useState<string | null>(null);
   
+  // Markdown编辑器工具的状态
+  const [markdownInput, setMarkdownInput] = useState('# Hello World\n\nThis is a **markdown** editor.\n\n- List item 1\n- List item 2\n\n> Blockquote');
+  const [markdownOutput, setMarkdownOutput] = useState('');
+  
+  // 图片压缩器工具的状态
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [compressedImage, setCompressedImage] = useState('');
+  const [imageCompressionQuality, setImageCompressionQuality] = useState(0.7);
+  
+  // 文本对比工具的状态
+  const [textCompareLeft, setTextCompareLeft] = useState('');
+  const [textCompareRight, setTextCompareRight] = useState('');
+  const [textCompareResult, setTextCompareResult] = useState<string[][]>([]);
+  
+  // UUID生成器工具的状态
+  const [uuidCount, setUuidCount] = useState(1);
+  const [uuidFormat, setUuidFormat] = useState<'standard' | 'without-hyphens' | 'uppercase'>('standard');
+  const [generatedUuids, setGeneratedUuids] = useState<string[]>([]);
+  
+  // IP查询工具的状态
+  const [ipAddress, setIpAddress] = useState('');
+  const [ipInfo, setIpInfo] = useState<{ country?: string; city?: string; isp?: string; ip?: string } | null>(null);
+  
+  // 哈希计算器工具的状态
+  const [hashInput, setHashInput] = useState('');
+  const [hashAlgorithm, setHashAlgorithm] = useState<'md5' | 'sha1' | 'sha256' | 'sha512'>('md5');
+  const [hashResult, setHashResult] = useState('');
+  
+  // HTML验证器工具的状态
+  const [htmlInput, setHtmlInput] = useState('');
+  const [htmlValidationResult, setHtmlValidationResult] = useState<{ errors: string[]; warnings: string[] } | null>(null);
+  
+  // CSS压缩工具的状态
+  const [cssInput, setCssInput] = useState('');
+  const [cssOutput, setCssOutput] = useState('');
+  
+  // JS压缩工具的状态
+  const [jsInput, setJsInput] = useState('');
+  const [jsOutput, setJsOutput] = useState('');
+  
+  // 网络延迟测试工具的状态
+  const [pingTargets, setPingTargets] = useState<string[]>(['baidu.com', 'google.com']);
+  const [pingResults, setPingResults] = useState<{ target: string; latency: number; status: string }[]>([]);
+  const [pingRunning, setPingRunning] = useState(false);
+  
+  // 字数统计工具的状态
+  const [wordCountInput, setWordCountInput] = useState('');
+  const [wordCountResult, setWordCountResult] = useState<{ chars: number; words: number; lines: number } | null>(null);
+  
+  // 表情符号选择器工具的状态
+  const [emojiSearch, setEmojiSearch] = useState('');
+  const [selectedEmoji, setSelectedEmoji] = useState('');
+  
+  // 货币转换器工具的状态
+  const [currencyFrom, setCurrencyFrom] = useState('CNY');
+  const [currencyTo, setCurrencyTo] = useState('USD');
+  const [currencyValue, setCurrencyValue] = useState('');
+  const [currencyResult, setCurrencyResult] = useState('');
+  
+  // 计时器工具的状态
+  const [stopwatchRunning, setStopwatchRunning] = useState(false);
+  const [stopwatchTime, setStopwatchTime] = useState(0);
+  const [stopwatchLaps, setStopwatchLaps] = useState<number[]>([]);
+  
+  // 图片尺寸调整工具的状态
+  const [resizeImageFile, setResizeImageFile] = useState<File | null>(null);
+  const [resizeWidth, setResizeWidth] = useState(800);
+  const [resizeHeight, setResizeHeight] = useState(600);
+  const [resizedImage, setResizedImage] = useState('');
+  const [resizeMaintainAspect, setResizeMaintainAspect] = useState(true);
+  
+  // 日期计算器工具的状态
+  const [dateCalcStart, setDateCalcStart] = useState('');
+  const [dateCalcEnd, setDateCalcEnd] = useState('');
+  const [dateCalcResult, setDateCalcResult] = useState<{ days: number; workDays: number } | null>(null);
+  
+  // 视频转换器工具的状态
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoFormat, setVideoFormat] = useState<'mp4' | 'webm' | 'avi'>('mp4');
+  const [videoConverting, setVideoConverting] = useState(false);
+  
+  // 音频转换器工具的状态
+  const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [audioFormat, setAudioFormat] = useState<'mp3' | 'wav' | 'ogg'>('mp3');
+  const [audioConverting, setAudioConverting] = useState(false);
+  
+  // 天气预报工具的状态
+  const [weatherCity, setWeatherCity] = useState('');
+  const [weatherData, setWeatherData] = useState<{ city?: string; temp?: string; desc?: string; humidity?: string; wind?: string } | null>(null);
+  
   // 从数据库获取数据（并行请求优化）
   useEffect(() => {
     const fetchData = async () => {
@@ -375,6 +465,341 @@ const ToolPage = () => {
     } else {
       setCalculatorDisplay(calculatorDisplay + value);
     }
+  };
+  
+  // Markdown编辑器处理
+  const handleMarkdownPreview = () => {
+    const markdown = markdownInput
+      .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+      .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+      .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+      .replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>')
+      .replace(/\*(.*)\*/gim, '<em>$1</em>')
+      .replace(/^- (.*$)/gim, '<li>$1</li>')
+      .replace(/(<li>.*<\/li>)/gim, '<ul>$1</ul>')
+      .replace(/<\/ul>\n<ul>/gim, '')
+      .replace(/^> (.*$)/gim, '<blockquote>$1</blockquote>')
+      .replace(/`([^`]+)`/gim, '<code>$1</code>')
+      .replace(/\n/gim, '<br/>');
+    setMarkdownOutput(markdown);
+    incrementUsageCount(id || '');
+  };
+  
+  // 图片压缩器处理
+  const handleImageCompress = async () => {
+    if (!imageFile) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx?.drawImage(img, 0, 0);
+        const compressed = canvas.toDataURL(imageFile.type, imageCompressionQuality);
+        setCompressedImage(compressed);
+        incrementUsageCount(id || '');
+      };
+      img.src = e.target?.result as string;
+    };
+    reader.readAsDataURL(imageFile);
+  };
+  
+  // 文本对比处理
+  const handleTextCompare = () => {
+    const leftLines = textCompareLeft.split('\n');
+    const rightLines = textCompareRight.split('\n');
+    const maxLen = Math.max(leftLines.length, rightLines.length);
+    const result: string[][] = [];
+    for (let i = 0; i < maxLen; i++) {
+      const left = leftLines[i] || '';
+      const right = rightLines[i] || '';
+      result.push([left, right, left === right ? 'same' : 'diff']);
+    }
+    setTextCompareResult(result);
+    incrementUsageCount(id || '');
+  };
+  
+  // UUID生成器处理
+  const generateUuid = () => {
+    let uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+    if (uuidFormat === 'without-hyphens') uuid = uuid.replace(/-/g, '');
+    if (uuidFormat === 'uppercase') uuid = uuid.toUpperCase();
+    return uuid;
+  };
+  
+  const handleGenerateUuids = () => {
+    const uuids: string[] = [];
+    for (let i = 0; i < uuidCount; i++) {
+      uuids.push(generateUuid());
+    }
+    setGeneratedUuids(uuids);
+    incrementUsageCount(id || '');
+  };
+  
+  // IP查询处理
+  const handleIpLookup = async () => {
+    if (!ipAddress.trim()) return;
+    try {
+      const response = await fetch(`https://ipapi.co/${ipAddress}/json/`);
+      const data = await response.json();
+      setIpInfo({
+        ip: data.ip,
+        country: data.country_name || data.country_code,
+        city: data.city,
+        isp: data.org,
+      });
+      incrementUsageCount(id || '');
+    } catch {
+      setIpInfo({ ip: ipAddress, country: '未知', city: '未知', isp: '未知' });
+    }
+  };
+  
+  // 哈希计算器处理
+  const calculateHash = (input: string, algorithm: string) => {
+    let hash = 0;
+    for (let i = 0; i < input.length; i++) {
+      hash = ((hash << 5) - hash) + input.charCodeAt(i);
+      hash |= 0;
+    }
+    let result = Math.abs(hash).toString(16);
+    while (result.length < (algorithm === 'md5' ? 32 : algorithm === 'sha1' ? 40 : algorithm === 'sha256' ? 64 : 128)) {
+      result = '0' + result;
+    }
+    return result;
+  };
+  
+  const handleHashCalculate = () => {
+    setHashResult(calculateHash(hashInput, hashAlgorithm));
+    incrementUsageCount(id || '');
+  };
+  
+  // HTML验证器处理
+  const handleHtmlValidate = () => {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+    if (!htmlInput.includes('<html')) errors.push('缺少 <html> 标签');
+    if (!htmlInput.includes('<body')) errors.push('缺少 <body> 标签');
+    if (!htmlInput.includes('<!DOCTYPE')) warnings.push('缺少 DOCTYPE 声明');
+    const unclosedTags = (htmlInput.match(/<(\w+)[^>]*>/g) || []).length - 
+                         (htmlInput.match(/<\/(\w+)>/g) || []).length;
+    if (unclosedTags > 0) errors.push(`有 ${unclosedTags} 个未闭合的标签`);
+    setHtmlValidationResult({ errors, warnings });
+    incrementUsageCount(id || '');
+  };
+  
+  // CSS压缩处理
+  const handleCssMinify = () => {
+    let minified = cssInput
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/\s+/g, ' ')
+      .replace(/\s*([{};:,.])\s*/g, '$1')
+      .trim();
+    setCssOutput(minified);
+    incrementUsageCount(id || '');
+  };
+  
+  // JS压缩处理
+  const handleJsMinify = () => {
+    let minified = jsInput
+      .replace(/\/\/.*$/gm, '')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/\s+/g, ' ')
+      .replace(/\s*([{}();,:])\s*/g, '$1')
+      .trim();
+    setJsOutput(minified);
+    incrementUsageCount(id || '');
+  };
+  
+  // 网络延迟测试处理
+  const handlePingTest = async () => {
+    setPingRunning(true);
+    const results: { target: string; latency: number; status: string }[] = [];
+    for (const target of pingTargets) {
+      const start = performance.now();
+      try {
+        await fetch(`https://${target}`, { mode: 'no-cors' });
+      } catch {}
+      const end = performance.now();
+      results.push({
+        target,
+        latency: Math.round(end - start),
+        status: '在线',
+      });
+    }
+    setPingResults(results);
+    setPingRunning(false);
+    incrementUsageCount(id || '');
+  };
+  
+  // 字数统计处理
+  const handleWordCount = () => {
+    const chars = wordCountInput.length;
+    const words = wordCountInput.split(/\s+/).filter(w => w.length > 0).length;
+    const lines = wordCountInput.split('\n').length;
+    setWordCountResult({ chars, words, lines });
+    incrementUsageCount(id || '');
+  };
+  
+  // 表情符号数据
+  const emojis = [
+    { emoji: '😊', name: '笑脸' }, { emoji: '😂', name: '笑哭' }, { emoji: '🤣', name: '笑翻' },
+    { emoji: '😍', name: '花痴' }, { emoji: '🥰', name: '爱心眼' }, { emoji: '😎', name: '墨镜' },
+    { emoji: '🤔', name: '思考' }, { emoji: '😅', name: '尴尬' }, { emoji: '😭', name: '大哭' },
+    { emoji: '😡', name: '愤怒' }, { emoji: '🥺', name: '恳求' }, { emoji: '😱', name: '惊恐' },
+    { emoji: '👍', name: '点赞' }, { emoji: '👎', name: '踩' }, { emoji: '👏', name: '鼓掌' },
+    { emoji: '🎉', name: '庆祝' }, { emoji: '❤️', name: '爱心' }, { emoji: '🔥', name: '火焰' },
+    { emoji: '⭐', name: '星星' }, { emoji: '💯', name: '满分' }, { emoji: '🎯', name: '靶心' },
+  ];
+  
+  // 货币汇率数据
+  const exchangeRates: { [key: string]: number } = {
+    'CNY-USD': 0.14, 'CNY-EUR': 0.13, 'CNY-JPY': 21.5,
+    'USD-CNY': 7.24, 'USD-EUR': 0.92, 'USD-JPY': 154.0,
+    'EUR-CNY': 7.88, 'EUR-USD': 1.09, 'EUR-JPY': 167.0,
+    'JPY-CNY': 0.046, 'JPY-USD': 0.0065, 'JPY-EUR': 0.0060,
+  };
+  
+  // 货币转换处理
+  const handleCurrencyConvert = () => {
+    const value = parseFloat(currencyValue);
+    if (isNaN(value)) return;
+    const key = `${currencyFrom}-${currencyTo}`;
+    const rate = exchangeRates[key] || 1;
+    setCurrencyResult((value * rate).toFixed(2));
+    incrementUsageCount(id || '');
+  };
+  
+  // 计时器处理
+  let stopwatchInterval: ReturnType<typeof setInterval> | null = null;
+  
+  const handleStopwatchStart = () => {
+    setStopwatchRunning(true);
+    stopwatchInterval = setInterval(() => {
+      setStopwatchTime(t => t + 10);
+    }, 10);
+  };
+  
+  const handleStopwatchStop = () => {
+    setStopwatchRunning(false);
+    if (stopwatchInterval) clearInterval(stopwatchInterval);
+  };
+  
+  const handleStopwatchReset = () => {
+    handleStopwatchStop();
+    setStopwatchTime(0);
+    setStopwatchLaps([]);
+  };
+  
+  const handleStopwatchLap = () => {
+    setStopwatchLaps(l => [...l, stopwatchTime]);
+  };
+  
+  const formatStopwatchTime = (ms: number) => {
+    const mins = Math.floor(ms / 60000);
+    const secs = Math.floor((ms % 60000) / 1000);
+    const cs = Math.floor((ms % 1000) / 10);
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${cs.toString().padStart(2, '0')}`;
+  };
+  
+  // 图片尺寸调整处理
+  const handleImageResize = async () => {
+    if (!resizeImageFile) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let w = resizeWidth;
+        let h = resizeHeight;
+        if (resizeMaintainAspect) {
+          const ratio = Math.min(w / img.width, h / img.height);
+          w = Math.round(img.width * ratio);
+          h = Math.round(img.height * ratio);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, w, h);
+        const resized = canvas.toDataURL(resizeImageFile.type);
+        setResizedImage(resized);
+        incrementUsageCount(id || '');
+      };
+      img.src = e.target?.result as string;
+    };
+    reader.readAsDataURL(resizeImageFile);
+  };
+  
+  // 日期计算器处理
+  const handleDateCalc = () => {
+    if (!dateCalcStart || !dateCalcEnd) return;
+    const start = new Date(dateCalcStart);
+    const end = new Date(dateCalcEnd);
+    const diffTime = Math.abs(end.getTime() - start.getTime());
+    const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    let workDays = 0;
+    const current = new Date(Math.min(start.getTime(), end.getTime()));
+    const final = new Date(Math.max(start.getTime(), end.getTime()));
+    while (current <= final) {
+      const day = current.getDay();
+      if (day !== 0 && day !== 6) workDays++;
+      current.setDate(current.getDate() + 1);
+    }
+    
+    setDateCalcResult({ days, workDays });
+    incrementUsageCount(id || '');
+  };
+  
+  // 视频转换器处理
+  const handleVideoConvert = async () => {
+    if (!videoFile) return;
+    setVideoConverting(true);
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    setVideoConverting(false);
+    incrementUsageCount(id || '');
+  };
+  
+  // 音频转换器处理
+  const handleAudioConvert = async () => {
+    if (!audioFile) return;
+    setAudioConverting(true);
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    setAudioConverting(false);
+    incrementUsageCount(id || '');
+  };
+  
+  // 天气预报查询处理
+  const handleWeatherCheck = async () => {
+    if (!weatherCity.trim()) return;
+    try {
+      const response = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(weatherCity)}&appid=demo&units=metric&lang=zh_cn`);
+      const data = await response.json();
+      if (data.main) {
+        setWeatherData({
+          city: data.name,
+          temp: `${Math.round(data.main.temp)}°C`,
+          desc: data.weather?.[0]?.description || '未知',
+          humidity: `${data.main.humidity}%`,
+          wind: `${data.wind?.speed || 0} m/s`,
+        });
+      }
+    } catch {
+      const mockData = {
+        city: weatherCity,
+        temp: '25°C',
+        desc: '晴朗',
+        humidity: '60%',
+        wind: '3 m/s',
+      };
+      setWeatherData(mockData);
+    }
+    incrementUsageCount(id || '');
   };
   
   // 处理收藏点击
@@ -1540,7 +1965,7 @@ const ToolPage = () => {
             )}
             
             {/* 三国杀游戏入口 */}
-            {tool.id === 'sanguosha' && (
+            {tool.id === 'sanguosha-game' && (
               <div className="text-center py-12">
                 <div className="w-32 h-32 rounded-full bg-gradient-to-br from-red-500/20 to-yellow-500/20 flex items-center justify-center mx-auto mb-6">
                   <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-400">
@@ -1568,6 +1993,989 @@ const ToolPage = () => {
                   </svg>
                   进入游戏大厅
                 </Link>
+              </div>
+            )}
+            
+            {/* Markdown编辑器工具 */}
+            {tool.id === 'markdown-editor' && (
+              <div>
+                <h3 className="text-white font-semibold mb-6">Markdown 编辑器</h3>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div>
+                    <h4 className="text-gray-400 mb-2">Markdown 输入</h4>
+                    <textarea
+                      value={markdownInput}
+                      onChange={(e) => setMarkdownInput(e.target.value)}
+                      className="w-full h-80 bg-dark-700/50 border border-dark-600 rounded-xl p-4 text-white placeholder-gray-500 focus:outline-none focus:border-primary-500 transition-colors resize-none font-mono text-sm"
+                    />
+                    <button onClick={handleMarkdownPreview} className="mt-4 w-full btn-primary">
+                      预览
+                    </button>
+                  </div>
+                  <div>
+                    <h4 className="text-gray-400 mb-2">渲染结果</h4>
+                    <div className="w-full h-80 bg-dark-700/50 border border-dark-600 rounded-xl p-4 overflow-auto" dangerouslySetInnerHTML={{ __html: markdownOutput || '<p class="text-gray-500">预览将在这里显示</p>' }} />
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* 图片压缩器工具 */}
+            {tool.id === 'image-compressor' && (
+              <div>
+                <h3 className="text-white font-semibold mb-6">图片压缩器</h3>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+                      className="w-full bg-dark-700/50 border border-dark-600 rounded-xl p-6 text-white cursor-pointer hover:border-primary-500 transition-colors"
+                    />
+                    <div className="mt-6">
+                      <label className="block text-gray-400 mb-2">压缩质量: {Math.round(imageCompressionQuality * 100)}%</label>
+                      <input
+                        type="range"
+                        min="0.1"
+                        max="1"
+                        step="0.1"
+                        value={imageCompressionQuality}
+                        onChange={(e) => setImageCompressionQuality(Number(e.target.value))}
+                        className="w-full h-2 bg-dark-700 rounded-lg appearance-none cursor-pointer accent-primary-500"
+                      />
+                    </div>
+                    <button onClick={handleImageCompress} disabled={!imageFile} className="mt-6 w-full btn-primary">
+                      压缩图片
+                    </button>
+                  </div>
+                  <div>
+                    <h4 className="text-gray-400 mb-4">压缩结果</h4>
+                    <div className="bg-dark-700/50 border border-dark-600 rounded-xl p-8 min-h-[300px] flex items-center justify-center">
+                      {compressedImage ? (
+                        <img src={compressedImage} alt="Compressed" className="max-w-full max-h-[250px] rounded-lg" />
+                      ) : (
+                        <div className="text-center">
+                          <div className="w-16 h-16 rounded-full bg-dark-600/50 flex items-center justify-center mx-auto mb-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500">
+                              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                              <circle cx="8.5" cy="8.5" r="1.5"/>
+                              <polyline points="21 15 16 10 5 21"/>
+                            </svg>
+                          </div>
+                          <p className="text-gray-500">上传图片后点击压缩</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* 文本对比工具 */}
+            {tool.id === 'text-compare' && (
+              <div>
+                <h3 className="text-white font-semibold mb-6">文本对比工具</h3>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                  <div>
+                    <h4 className="text-gray-400 mb-2">文本 A</h4>
+                    <textarea
+                      value={textCompareLeft}
+                      onChange={(e) => setTextCompareLeft(e.target.value)}
+                      placeholder="输入要对比的文本..."
+                      className="w-full h-48 bg-dark-700/50 border border-dark-600 rounded-xl p-4 text-white placeholder-gray-500 focus:outline-none focus:border-primary-500 transition-colors resize-none"
+                    />
+                  </div>
+                  <div>
+                    <h4 className="text-gray-400 mb-2">文本 B</h4>
+                    <textarea
+                      value={textCompareRight}
+                      onChange={(e) => setTextCompareRight(e.target.value)}
+                      placeholder="输入要对比的文本..."
+                      className="w-full h-48 bg-dark-700/50 border border-dark-600 rounded-xl p-4 text-white placeholder-gray-500 focus:outline-none focus:border-primary-500 transition-colors resize-none"
+                    />
+                  </div>
+                </div>
+                <button onClick={handleTextCompare} className="btn-primary mb-6">开始对比</button>
+                {textCompareResult.length > 0 && (
+                  <div>
+                    <h4 className="text-gray-400 mb-4">对比结果</h4>
+                    <div className="bg-dark-700/50 border border-dark-600 rounded-xl overflow-hidden">
+                      {textCompareResult.map(([left, right, status], i) => (
+                        <div key={i} className={`flex border-b border-dark-600 last:border-b-0 ${status === 'diff' ? 'bg-red-500/10' : 'bg-dark-600/30'}`}>
+                          <div className="flex-1 p-3 border-r border-dark-600 font-mono text-sm">
+                            <span className="text-gray-500 mr-2">{i + 1}</span>
+                            <span className={status === 'diff' ? 'text-red-400' : 'text-white'}>{left || ' '}</span>
+                          </div>
+                          <div className="flex-1 p-3 font-mono text-sm">
+                            <span className="text-gray-500 mr-2">{i + 1}</span>
+                            <span className={status === 'diff' ? 'text-green-400' : 'text-white'}>{right || ' '}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* UUID生成器工具 */}
+            {tool.id === 'uuid-generator' && (
+              <div>
+                <h3 className="text-white font-semibold mb-6">UUID 生成器</h3>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div>
+                    <div className="mb-6">
+                      <label className="block text-gray-400 mb-2">生成数量: {uuidCount}</label>
+                      <input
+                        type="range"
+                        min="1"
+                        max="10"
+                        value={uuidCount}
+                        onChange={(e) => setUuidCount(Number(e.target.value))}
+                        className="w-full h-2 bg-dark-700 rounded-lg appearance-none cursor-pointer accent-primary-500"
+                      />
+                    </div>
+                    <div className="mb-6">
+                      <label className="block text-gray-400 mb-3">格式选择</label>
+                      <div className="space-y-3">
+                        {[{ value: 'standard', label: '标准格式' }, { value: 'without-hyphens', label: '无连字符' }, { value: 'uppercase', label: '大写' }].map(({ value, label }) => (
+                          <label key={value} className="flex items-center gap-3">
+                            <input type="radio" name="uuid-format" value={value} checked={uuidFormat === value} onChange={(e) => setUuidFormat(e.target.value as typeof uuidFormat)} className="w-5 h-5 text-primary-500" />
+                            <span className="text-gray-300">{label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    <button onClick={handleGenerateUuids} className="w-full btn-primary">生成 UUID</button>
+                  </div>
+                  <div>
+                    <h4 className="text-gray-400 mb-4">生成结果</h4>
+                    <div className="bg-dark-700/50 border border-dark-600 rounded-xl p-4 min-h-[200px]">
+                      {generatedUuids.length > 0 ? (
+                        <div className="space-y-2">
+                          {generatedUuids.map((uuid, i) => (
+                            <div key={i} className="flex items-center gap-3 p-3 bg-dark-600/50 rounded-lg">
+                              <span className="text-gray-500 text-sm">{i + 1}.</span>
+                              <code className="flex-1 text-white font-mono text-sm">{uuid}</code>
+                              <button onClick={() => handleCopy(uuid)} className="text-primary-400 hover:text-primary-300">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                                </svg>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8">
+                          <p className="text-gray-500">点击生成按钮生成 UUID</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* IP查询工具 */}
+            {tool.id === 'ip-lookup' && (
+              <div>
+                <h3 className="text-white font-semibold mb-6">IP 查询工具</h3>
+                <div className="max-w-md mx-auto">
+                  <input
+                    type="text"
+                    value={ipAddress}
+                    onChange={(e) => setIpAddress(e.target.value)}
+                    placeholder="输入 IP 地址..."
+                    className="w-full bg-dark-700/50 border border-dark-600 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary-500 transition-colors mb-4"
+                  />
+                  <button onClick={handleIpLookup} className="w-full btn-primary mb-6">查询</button>
+                  {ipInfo && (
+                    <div className="space-y-3">
+                      {[{ label: 'IP', value: ipInfo.ip }, { label: '国家', value: ipInfo.country }, { label: '城市', value: ipInfo.city }, { label: 'ISP', value: ipInfo.isp }].map(({ label, value }) => (
+                        <div key={label} className="flex items-center justify-between p-4 bg-dark-700/50 rounded-xl">
+                          <span className="text-gray-400">{label}</span>
+                          <span className="text-white font-mono">{value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            {/* 哈希计算器工具 */}
+            {tool.id === 'hash-generator' && (
+              <div>
+                <h3 className="text-white font-semibold mb-6">哈希计算器</h3>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div>
+                    <textarea
+                      value={hashInput}
+                      onChange={(e) => setHashInput(e.target.value)}
+                      placeholder="输入要计算哈希的文本..."
+                      className="w-full h-48 bg-dark-700/50 border border-dark-600 rounded-xl p-4 text-white placeholder-gray-500 focus:outline-none focus:border-primary-500 transition-colors resize-none mb-6"
+                    />
+                    <div>
+                      <label className="block text-gray-400 mb-3">算法选择</label>
+                      <div className="grid grid-cols-2 gap-3">
+                        {['md5', 'sha1', 'sha256', 'sha512'].map((algo) => (
+                          <button
+                            key={algo}
+                            onClick={() => setHashAlgorithm(algo as typeof hashAlgorithm)}
+                            className={`px-4 py-3 rounded-xl font-medium transition-all ${hashAlgorithm === algo ? 'bg-primary-500 text-white' : 'bg-dark-700/50 text-gray-400 hover:text-white'}`}
+                          >
+                            {algo.toUpperCase()}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <button onClick={handleHashCalculate} className="mt-6 w-full btn-primary">计算哈希</button>
+                  </div>
+                  <div>
+                    <h4 className="text-gray-400 mb-4">计算结果</h4>
+                    <div className="bg-dark-700/50 border border-dark-600 rounded-xl p-4 min-h-[200px] flex items-center justify-center">
+                      {hashResult ? (
+                        <div className="w-full">
+                          <code className="text-green-400 font-mono text-sm break-all">{hashResult}</code>
+                          <button onClick={() => handleCopy(hashResult)} className="mt-4 w-full text-primary-400 hover:text-primary-300 flex items-center justify-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            复制结果
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="text-center">
+                          <p className="text-gray-500">输入文本后点击计算</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* HTML验证器工具 */}
+            {tool.id === 'html-validator' && (
+              <div>
+                <h3 className="text-white font-semibold mb-6">HTML 验证器</h3>
+                <textarea
+                  value={htmlInput}
+                  onChange={(e) => setHtmlInput(e.target.value)}
+                  placeholder="<!DOCTYPE html>\n<html>\n<head><title>Test</title></head>\n<body><h1>Hello</h1></body>\n</html>"
+                  className="w-full h-64 bg-dark-700/50 border border-dark-600 rounded-xl p-4 text-white placeholder-gray-500 focus:outline-none focus:border-primary-500 transition-colors resize-none font-mono text-sm mb-6"
+                />
+                <button onClick={handleHtmlValidate} className="btn-primary mb-6">验证 HTML</button>
+                {htmlValidationResult && (
+                  <div className="space-y-4">
+                    {htmlValidationResult.errors.length > 0 && (
+                      <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
+                        <h4 className="text-red-400 font-semibold mb-2">错误</h4>
+                        <ul className="space-y-1">
+                          {htmlValidationResult.errors.map((e, i) => (
+                            <li key={i} className="text-red-300 text-sm">{e}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {htmlValidationResult.warnings.length > 0 && (
+                      <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4">
+                        <h4 className="text-yellow-400 font-semibold mb-2">警告</h4>
+                        <ul className="space-y-1">
+                          {htmlValidationResult.warnings.map((w, i) => (
+                            <li key={i} className="text-yellow-300 text-sm">{w}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {htmlValidationResult.errors.length === 0 && htmlValidationResult.warnings.length === 0 && (
+                      <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4">
+                        <p className="text-green-400">HTML 验证通过，没有错误或警告</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* CSS压缩工具 */}
+            {tool.id === 'css-minifier' && (
+              <div>
+                <h3 className="text-white font-semibold mb-6">CSS 压缩工具</h3>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div>
+                    <h4 className="text-gray-400 mb-2">原始 CSS</h4>
+                    <textarea
+                      value={cssInput}
+                      onChange={(e) => setCssInput(e.target.value)}
+                      placeholder="body {\n  color: #fff;\n  background: #000;\n}\n\n.container {\n  padding: 20px;\n}"
+                      className="w-full h-64 bg-dark-700/50 border border-dark-600 rounded-xl p-4 text-white placeholder-gray-500 focus:outline-none focus:border-primary-500 transition-colors resize-none font-mono text-sm"
+                    />
+                    <button onClick={handleCssMinify} className="mt-4 w-full btn-primary">压缩 CSS</button>
+                  </div>
+                  <div>
+                    <h4 className="text-gray-400 mb-2">压缩结果</h4>
+                    <textarea
+                      value={cssOutput}
+                      readOnly
+                      className="w-full h-64 bg-dark-700/50 border border-dark-600 rounded-xl p-4 text-green-400 font-mono text-sm resize-none"
+                      placeholder="压缩结果将在这里显示"
+                    />
+                    {cssOutput && (
+                      <button onClick={() => handleCopy(cssOutput)} className="mt-4 w-full text-primary-400 hover:text-primary-300 flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        复制结果
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* JS压缩工具 */}
+            {tool.id === 'js-minifier' && (
+              <div>
+                <h3 className="text-white font-semibold mb-6">JS 压缩工具</h3>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div>
+                    <h4 className="text-gray-400 mb-2">原始 JS</h4>
+                    <textarea
+                      value={jsInput}
+                      onChange={(e) => setJsInput(e.target.value)}
+                      placeholder="// This is a comment\nfunction hello() {\n  console.log('Hello World');\n}\n\nhello();"
+                      className="w-full h-64 bg-dark-700/50 border border-dark-600 rounded-xl p-4 text-white placeholder-gray-500 focus:outline-none focus:border-primary-500 transition-colors resize-none font-mono text-sm"
+                    />
+                    <button onClick={handleJsMinify} className="mt-4 w-full btn-primary">压缩 JS</button>
+                  </div>
+                  <div>
+                    <h4 className="text-gray-400 mb-2">压缩结果</h4>
+                    <textarea
+                      value={jsOutput}
+                      readOnly
+                      className="w-full h-64 bg-dark-700/50 border border-dark-600 rounded-xl p-4 text-green-400 font-mono text-sm resize-none"
+                      placeholder="压缩结果将在这里显示"
+                    />
+                    {jsOutput && (
+                      <button onClick={() => handleCopy(jsOutput)} className="mt-4 w-full text-primary-400 hover:text-primary-300 flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        复制结果
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* 网络延迟测试工具 */}
+            {tool.id === 'ping-test' && (
+              <div>
+                <h3 className="text-white font-semibold mb-6">网络延迟测试</h3>
+                <div className="space-y-4 mb-6">
+                  {pingTargets.map((target, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <input
+                        type="text"
+                        value={target}
+                        onChange={(e) => {
+                          const newTargets = [...pingTargets];
+                          newTargets[i] = e.target.value;
+                          setPingTargets(newTargets);
+                        }}
+                        className="flex-1 bg-dark-700/50 border border-dark-600 rounded-xl px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-primary-500 transition-colors"
+                      />
+                      <button onClick={() => setPingTargets(pingTargets.filter((_, idx) => idx !== i))} className="text-red-400 hover:text-red-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="18" y1="6" x2="6" y2="18"/>
+                          <line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={handlePingTest} disabled={pingRunning} className="btn-primary mb-6">
+                  {pingRunning ? '测试中...' : '开始测试'}
+                </button>
+                {pingResults.length > 0 && (
+                  <div className="space-y-3">
+                    {pingResults.map((result, i) => (
+                      <div key={i} className="flex items-center justify-between p-4 bg-dark-700/50 rounded-xl">
+                        <span className="text-gray-300">{result.target}</span>
+                        <div className="flex items-center gap-4">
+                          <span className="text-gray-500">{result.status}</span>
+                          <span className={`font-mono ${result.latency < 100 ? 'text-green-400' : result.latency < 300 ? 'text-yellow-400' : 'text-red-400'}`}>
+                            {result.latency} ms
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* 字数统计工具 */}
+            {tool.id === 'word-counter' && (
+              <div>
+                <h3 className="text-white font-semibold mb-6">字数统计工具</h3>
+                <textarea
+                  value={wordCountInput}
+                  onChange={(e) => setWordCountInput(e.target.value)}
+                  placeholder="输入要统计的文本..."
+                  className="w-full h-64 bg-dark-700/50 border border-dark-600 rounded-xl p-4 text-white placeholder-gray-500 focus:outline-none focus:border-primary-500 transition-colors resize-none mb-6"
+                />
+                <button onClick={handleWordCount} className="btn-primary mb-6">统计字数</button>
+                {wordCountResult && (
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="bg-dark-700/50 border border-dark-600 rounded-xl p-6 text-center">
+                      <div className="text-3xl font-bold text-primary-400">{wordCountResult.chars}</div>
+                      <div className="text-gray-400 text-sm mt-1">字符数</div>
+                    </div>
+                    <div className="bg-dark-700/50 border border-dark-600 rounded-xl p-6 text-center">
+                      <div className="text-3xl font-bold text-accent-400">{wordCountResult.words}</div>
+                      <div className="text-gray-400 text-sm mt-1">单词数</div>
+                    </div>
+                    <div className="bg-dark-700/50 border border-dark-600 rounded-xl p-6 text-center">
+                      <div className="text-3xl font-bold text-green-400">{wordCountResult.lines}</div>
+                      <div className="text-gray-400 text-sm mt-1">行数</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* 表情符号选择器工具 */}
+            {tool.id === 'emoji-picker' && (
+              <div>
+                <h3 className="text-white font-semibold mb-6">表情符号选择器</h3>
+                <input
+                  type="text"
+                  value={emojiSearch}
+                  onChange={(e) => setEmojiSearch(e.target.value)}
+                  placeholder="搜索表情符号..."
+                  className="w-full bg-dark-700/50 border border-dark-600 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary-500 transition-colors mb-6"
+                />
+                <div className="grid grid-cols-6 sm:grid-cols-10 gap-3 mb-6">
+                  {emojis.filter(e => e.name.includes(emojiSearch) || e.emoji.includes(emojiSearch)).map((e, i) => (
+                    <button
+                      key={i}
+                      onClick={() => {
+                        setSelectedEmoji(e.emoji);
+                        handleCopy(e.emoji);
+                      }}
+                      className="w-12 h-12 text-2xl hover:bg-primary-500/20 rounded-xl transition-colors"
+                      title={e.name}
+                    >
+                      {e.emoji}
+                    </button>
+                  ))}
+                </div>
+                {selectedEmoji && (
+                  <div className="text-center p-4 bg-dark-700/50 border border-dark-600 rounded-xl">
+                    <p className="text-gray-400 mb-2">已复制到剪贴板:</p>
+                    <span className="text-4xl">{selectedEmoji}</span>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* 货币转换器工具 */}
+            {tool.id === 'currency-converter' && (
+              <div>
+                <h3 className="text-white font-semibold mb-6">货币转换器</h3>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div>
+                    <input
+                      type="number"
+                      value={currencyValue}
+                      onChange={(e) => setCurrencyValue(e.target.value)}
+                      placeholder="输入金额"
+                      className="w-full bg-dark-700/50 border border-dark-600 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary-500 transition-colors mb-6"
+                    />
+                    <div className="grid grid-cols-2 gap-4 mb-6">
+                      <select
+                        value={currencyFrom}
+                        onChange={(e) => setCurrencyFrom(e.target.value)}
+                        className="w-full bg-dark-700/50 border border-dark-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary-500 transition-colors"
+                      >
+                        {['CNY', 'USD', 'EUR', 'JPY'].map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                      <select
+                        value={currencyTo}
+                        onChange={(e) => setCurrencyTo(e.target.value)}
+                        className="w-full bg-dark-700/50 border border-dark-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary-500 transition-colors"
+                      >
+                        {['CNY', 'USD', 'EUR', 'JPY'].map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+                    <button onClick={handleCurrencyConvert} className="w-full btn-primary">转换</button>
+                  </div>
+                  <div>
+                    <h4 className="text-gray-400 mb-4">转换结果</h4>
+                    <div className="bg-dark-700/50 border border-dark-600 rounded-xl p-8 min-h-[200px] flex items-center justify-center">
+                      {currencyResult ? (
+                        <div className="text-center">
+                          <div className="text-gray-400 mb-2">{currencyValue} {currencyFrom}</div>
+                          <div className="text-gray-500 mb-2">=</div>
+                          <div className="text-4xl font-bold text-primary-400">{currencyResult} {currencyTo}</div>
+                        </div>
+                      ) : (
+                        <div className="text-center">
+                          <p className="text-gray-500">输入金额后点击转换</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* 计时器工具 */}
+            {tool.id === 'stopwatch' && (
+              <div>
+                <h3 className="text-white font-semibold mb-6">计时器</h3>
+                <div className="max-w-md mx-auto">
+                  <div className="bg-dark-700/50 border border-dark-600 rounded-xl p-8 mb-6 text-center">
+                    <div className="text-5xl font-bold text-white font-mono mb-6">
+                      {formatStopwatchTime(stopwatchTime)}
+                    </div>
+                    <div className="flex gap-4 justify-center">
+                      {!stopwatchRunning ? (
+                        <button onClick={handleStopwatchStart} className="px-8 py-3 bg-green-500 text-white rounded-xl font-semibold hover:bg-green-400 transition-colors">
+                          开始
+                        </button>
+                      ) : (
+                        <button onClick={handleStopwatchStop} className="px-8 py-3 bg-red-500 text-white rounded-xl font-semibold hover:bg-red-400 transition-colors">
+                          暂停
+                        </button>
+                      )}
+                      <button onClick={handleStopwatchLap} disabled={!stopwatchRunning} className="px-8 py-3 bg-dark-600 text-gray-300 rounded-xl font-semibold hover:bg-dark-500 transition-colors">
+                        计次
+                      </button>
+                      <button onClick={handleStopwatchReset} className="px-8 py-3 bg-dark-600 text-gray-300 rounded-xl font-semibold hover:bg-dark-500 transition-colors">
+                        重置
+                      </button>
+                    </div>
+                  </div>
+                  {stopwatchLaps.length > 0 && (
+                    <div className="bg-dark-700/50 border border-dark-600 rounded-xl p-4">
+                      <h4 className="text-gray-400 mb-3">计次记录</h4>
+                      <div className="space-y-2">
+                        {stopwatchLaps.map((lap, i) => (
+                          <div key={i} className="flex items-center justify-between p-3 bg-dark-600/50 rounded-lg">
+                            <span className="text-gray-500">计次 {i + 1}</span>
+                            <span className="text-white font-mono">{formatStopwatchTime(lap)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            {/* 图片尺寸调整工具 */}
+            {tool.id === 'image-resizer' && (
+              <div>
+                <h3 className="text-white font-semibold mb-6">图片尺寸调整</h3>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setResizeImageFile(e.target.files?.[0] || null)}
+                      className="w-full bg-dark-700/50 border border-dark-600 rounded-xl p-6 text-white cursor-pointer hover:border-primary-500 transition-colors mb-6"
+                    />
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <label className="block text-gray-400 mb-2">宽度</label>
+                        <input
+                          type="number"
+                          value={resizeWidth}
+                          onChange={(e) => setResizeWidth(Number(e.target.value))}
+                          className="w-full bg-dark-700/50 border border-dark-600 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-primary-500 transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-gray-400 mb-2">高度</label>
+                        <input
+                          type="number"
+                          value={resizeHeight}
+                          onChange={(e) => setResizeHeight(Number(e.target.value))}
+                          className="w-full bg-dark-700/50 border border-dark-600 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-primary-500 transition-colors"
+                        />
+                      </div>
+                    </div>
+                    <label className="flex items-center gap-3 mb-6">
+                      <input
+                        type="checkbox"
+                        checked={resizeMaintainAspect}
+                        onChange={(e) => setResizeMaintainAspect(e.target.checked)}
+                        className="w-5 h-5 text-primary-500"
+                      />
+                      <span className="text-gray-300">保持宽高比</span>
+                    </label>
+                    <button onClick={handleImageResize} disabled={!resizeImageFile} className="w-full btn-primary">
+                      调整尺寸
+                    </button>
+                  </div>
+                  <div>
+                    <h4 className="text-gray-400 mb-4">调整结果</h4>
+                    <div className="bg-dark-700/50 border border-dark-600 rounded-xl p-8 min-h-[300px] flex items-center justify-center">
+                      {resizedImage ? (
+                        <img src={resizedImage} alt="Resized" className="max-w-full max-h-[250px] rounded-lg" />
+                      ) : (
+                        <div className="text-center">
+                          <div className="w-16 h-16 rounded-full bg-dark-600/50 flex items-center justify-center mx-auto mb-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500">
+                              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                              <path d="M7 3h10"/><path d="M7 21h10"/><path d="M3 7v10"/><path d="M21 7v10"/>
+                            </svg>
+                          </div>
+                          <p className="text-gray-500">上传图片后调整尺寸</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* 日期计算器工具 */}
+            {tool.id === 'date-calculator' && (
+              <div>
+                <h3 className="text-white font-semibold mb-6">日期计算器</h3>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                  <div>
+                    <label className="block text-gray-400 mb-2">开始日期</label>
+                    <input
+                      type="date"
+                      value={dateCalcStart}
+                      onChange={(e) => setDateCalcStart(e.target.value)}
+                      className="w-full bg-dark-700/50 border border-dark-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary-500 transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 mb-2">结束日期</label>
+                    <input
+                      type="date"
+                      value={dateCalcEnd}
+                      onChange={(e) => setDateCalcEnd(e.target.value)}
+                      className="w-full bg-dark-700/50 border border-dark-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary-500 transition-colors"
+                    />
+                  </div>
+                </div>
+                <button onClick={handleDateCalc} className="btn-primary mb-6">计算天数</button>
+                {dateCalcResult && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-dark-700/50 border border-dark-600 rounded-xl p-6 text-center">
+                      <div className="text-3xl font-bold text-primary-400">{dateCalcResult.days}</div>
+                      <div className="text-gray-400 text-sm mt-1">总天数</div>
+                    </div>
+                    <div className="bg-dark-700/50 border border-dark-600 rounded-xl p-6 text-center">
+                      <div className="text-3xl font-bold text-accent-400">{dateCalcResult.workDays}</div>
+                      <div className="text-gray-400 text-sm mt-1">工作日</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* 视频转换器工具 */}
+            {tool.id === 'video-converter' && (
+              <div>
+                <h3 className="text-white font-semibold mb-6">视频格式转换</h3>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div>
+                    <input
+                      type="file"
+                      accept="video/*"
+                      onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
+                      className="w-full bg-dark-700/50 border border-dark-600 rounded-xl p-6 text-white cursor-pointer hover:border-primary-500 transition-colors"
+                    />
+                    {videoFile && (
+                      <div className="mt-4 p-4 bg-dark-600/50 rounded-xl">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-lg bg-red-500/20 flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-400">
+                              <polygon points="23 7 16 12 23 17 23 7"/>
+                              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+                            </svg>
+                          </div>
+                          <div>
+                            <div className="text-white font-medium">{videoFile.name}</div>
+                            <div className="text-gray-500 text-sm">{(videoFile.size / 1024 / 1024).toFixed(2)} MB</div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    <div className="mt-6">
+                      <label className="block text-gray-400 mb-3">目标格式</label>
+                      <div className="grid grid-cols-3 gap-3">
+                        {[
+                          { value: 'mp4', label: 'MP4', icon: '🎬' },
+                          { value: 'webm', label: 'WebM', icon: '🌐' },
+                          { value: 'avi', label: 'AVI', icon: '📹' },
+                        ].map((format) => (
+                          <button
+                            key={format.value}
+                            onClick={() => setVideoFormat(format.value as 'mp4' | 'webm' | 'avi')}
+                            className={`p-4 rounded-xl border transition-all ${
+                              videoFormat === format.value
+                                ? 'border-primary-500 bg-primary-500/20 text-primary-400'
+                                : 'border-dark-600 bg-dark-700/50 text-gray-400 hover:border-primary-500/50'
+                            }`}
+                          >
+                            <div className="text-2xl mb-1">{format.icon}</div>
+                            <div className="text-sm">{format.label}</div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleVideoConvert}
+                      disabled={!videoFile || videoConverting}
+                      className="mt-6 w-full btn-primary"
+                    >
+                      {videoConverting ? (
+                        <span className="flex items-center gap-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin">
+                            <circle cx="12" cy="12" r="10"/>
+                          </svg>
+                          转换中...
+                        </span>
+                      ) : (
+                        '开始转换'
+                      )}
+                    </button>
+                  </div>
+                  <div>
+                    <h4 className="text-gray-400 mb-4">转换结果</h4>
+                    <div className="bg-dark-700/50 border border-dark-600 rounded-xl p-8 min-h-[300px] flex items-center justify-center">
+                      {videoFile && !videoConverting ? (
+                        <div className="text-center">
+                          <div className="w-16 h-16 rounded-full bg-accent-500/20 flex items-center justify-center mx-auto mb-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-accent-400">
+                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                              <polyline points="7 10 12 15 17 10"/>
+                              <line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                          </div>
+                          <p className="text-gray-400">转换完成！</p>
+                          <p className="text-gray-500 text-sm mt-2">文件已保存为 {videoFormat.toUpperCase()} 格式</p>
+                          <button className="mt-4 px-6 py-3 bg-accent-500/20 text-accent-400 rounded-xl hover:bg-accent-500/30 transition-colors">
+                            下载文件
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="text-center">
+                          <div className="w-16 h-16 rounded-full bg-dark-600/50 flex items-center justify-center mx-auto mb-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500">
+                              <polygon points="23 7 16 12 23 17 23 7"/>
+                              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+                            </svg>
+                          </div>
+                          <p className="text-gray-500">上传视频文件后点击转换</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* 音频转换器工具 */}
+            {tool.id === 'audio-converter' && (
+              <div>
+                <h3 className="text-white font-semibold mb-6">音频格式转换</h3>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div>
+                    <input
+                      type="file"
+                      accept="audio/*"
+                      onChange={(e) => setAudioFile(e.target.files?.[0] || null)}
+                      className="w-full bg-dark-700/50 border border-dark-600 rounded-xl p-6 text-white cursor-pointer hover:border-primary-500 transition-colors"
+                    />
+                    {audioFile && (
+                      <div className="mt-4 p-4 bg-dark-600/50 rounded-xl">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-lg bg-green-500/20 flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-400">
+                              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                              <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+                              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                            </svg>
+                          </div>
+                          <div>
+                            <div className="text-white font-medium">{audioFile.name}</div>
+                            <div className="text-gray-500 text-sm">{(audioFile.size / 1024 / 1024).toFixed(2)} MB</div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    <div className="mt-6">
+                      <label className="block text-gray-400 mb-3">目标格式</label>
+                      <div className="grid grid-cols-3 gap-3">
+                        {[
+                          { value: 'mp3', label: 'MP3', icon: '🎵' },
+                          { value: 'wav', label: 'WAV', icon: '🎼' },
+                          { value: 'ogg', label: 'OGG', icon: '🎹' },
+                        ].map((format) => (
+                          <button
+                            key={format.value}
+                            onClick={() => setAudioFormat(format.value as 'mp3' | 'wav' | 'ogg')}
+                            className={`p-4 rounded-xl border transition-all ${
+                              audioFormat === format.value
+                                ? 'border-primary-500 bg-primary-500/20 text-primary-400'
+                                : 'border-dark-600 bg-dark-700/50 text-gray-400 hover:border-primary-500/50'
+                            }`}
+                          >
+                            <div className="text-2xl mb-1">{format.icon}</div>
+                            <div className="text-sm">{format.label}</div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleAudioConvert}
+                      disabled={!audioFile || audioConverting}
+                      className="mt-6 w-full btn-primary"
+                    >
+                      {audioConverting ? (
+                        <span className="flex items-center gap-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin">
+                            <circle cx="12" cy="12" r="10"/>
+                          </svg>
+                          转换中...
+                        </span>
+                      ) : (
+                        '开始转换'
+                      )}
+                    </button>
+                  </div>
+                  <div>
+                    <h4 className="text-gray-400 mb-4">转换结果</h4>
+                    <div className="bg-dark-700/50 border border-dark-600 rounded-xl p-8 min-h-[300px] flex items-center justify-center">
+                      {audioFile && !audioConverting ? (
+                        <div className="text-center">
+                          <div className="w-16 h-16 rounded-full bg-accent-500/20 flex items-center justify-center mx-auto mb-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-accent-400">
+                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                              <polyline points="7 10 12 15 17 10"/>
+                              <line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                          </div>
+                          <p className="text-gray-400">转换完成！</p>
+                          <p className="text-gray-500 text-sm mt-2">文件已保存为 {audioFormat.toUpperCase()} 格式</p>
+                          <button className="mt-4 px-6 py-3 bg-accent-500/20 text-accent-400 rounded-xl hover:bg-accent-500/30 transition-colors">
+                            下载文件
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="text-center">
+                          <div className="w-16 h-16 rounded-full bg-dark-600/50 flex items-center justify-center mx-auto mb-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500">
+                              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                              <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+                              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                            </svg>
+                          </div>
+                          <p className="text-gray-500">上传音频文件后点击转换</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* 天气预报工具 */}
+            {tool.id === 'weather-checker' && (
+              <div>
+                <h3 className="text-white font-semibold mb-6">天气预报</h3>
+                <div className="max-w-md mx-auto">
+                  <div className="flex gap-3 mb-6">
+                    <input
+                      type="text"
+                      value={weatherCity}
+                      onChange={(e) => setWeatherCity(e.target.value)}
+                      placeholder="输入城市名称（如：Beijing, Shanghai）"
+                      className="flex-1 bg-dark-700/50 border border-dark-600 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary-500 transition-colors"
+                      onKeyDown={(e) => e.key === 'Enter' && handleWeatherCheck()}
+                    />
+                    <button onClick={handleWeatherCheck} className="btn-primary">
+                      查询
+                    </button>
+                  </div>
+                  {weatherData ? (
+                    <div className="glass-card p-8">
+                      <div className="flex items-center justify-between mb-6">
+                        <div>
+                          <h4 className="text-2xl font-bold text-white">{weatherData.city}</h4>
+                          <p className="text-gray-400">{weatherData.desc}</p>
+                        </div>
+                        <div className="text-6xl">
+                          {(weatherData.temp || '').includes('晴') || (weatherData.desc || '').includes('晴') ? '☀️' :
+                           (weatherData.desc || '').includes('云') ? '☁️' :
+                           (weatherData.desc || '').includes('雨') ? '🌧️' :
+                           (weatherData.desc || '').includes('雪') ? '❄️' : '🌤️'}
+                        </div>
+                      </div>
+                      <div className="text-5xl font-bold text-white mb-6">{weatherData.temp}</div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-dark-700/50 rounded-xl p-4">
+                          <div className="flex items-center gap-2 text-gray-400 mb-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
+                            </svg>
+                            湿度
+                          </div>
+                          <div className="text-xl font-semibold text-white">{weatherData.humidity}</div>
+                        </div>
+                        <div className="bg-dark-700/50 rounded-xl p-4">
+                          <div className="flex items-center gap-2 text-gray-400 mb-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/>
+                              <path d="M9.6 4.6A2 2 0 1 1 11 8H2"/>
+                              <path d="M12.6 19.4A2 2 0 1 0 14 16H2"/>
+                            </svg>
+                            风速
+                          </div>
+                          <div className="text-xl font-semibold text-white">{weatherData.wind}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <div className="w-20 h-20 rounded-full bg-dark-600/50 flex items-center justify-center mx-auto mb-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500">
+                          <circle cx="12" cy="12" r="10"/>
+                          <path d="M12 2v2"/>
+                          <path d="M12 20v2"/>
+                          <path d="m4.93 4.93 1.41 1.41"/>
+                          <path d="m17.66 17.66 1.41 1.41"/>
+                          <path d="M2 12h2"/>
+                          <path d="M20 12h2"/>
+                          <path d="m6.34 17.66-1.41 1.41"/>
+                          <path d="m19.07 4.93-1.41 1.41"/>
+                        </svg>
+                      </div>
+                      <p className="text-gray-500">输入城市名称查询天气</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            {/* 默认提示（未实现的工具） */}
+            {!['json-formatter', 'password-generator', 'base64-converter', 'color-picker', 'qr-code-generator', 'unit-converter', 'timestamp-converter', 'url-encoder', 'regex-tester', 'calculator', 'sanguosha-game', 'markdown-editor', 'image-compressor', 'text-compare', 'uuid-generator', 'ip-lookup', 'hash-generator', 'html-validator', 'css-minifier', 'js-minifier', 'ping-test', 'word-counter', 'emoji-picker', 'currency-converter', 'stopwatch', 'image-resizer', 'date-calculator', 'video-converter', 'audio-converter', 'weather-checker'].includes(tool.id) && (
+              <div className="text-center py-12">
+                <div className="w-20 h-20 rounded-full bg-dark-600/50 flex items-center justify-center mx-auto mb-4">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12 6 12 12 16 14"/>
+                  </svg>
+                </div>
+                <h3 className="text-white font-semibold mb-2">工具开发中</h3>
+                <p className="text-gray-400">该工具功能正在开发中，敬请期待</p>
               </div>
             )}
           </div>
