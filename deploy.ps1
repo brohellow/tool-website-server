@@ -40,7 +40,32 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-Write-Host "[STEP 4] 重启服务器..." -ForegroundColor Green
+Write-Host "[STEP 4] 构建无名杀游戏..." -ForegroundColor Green
+Set-Location "$ProjectDir\noname"
+
+# 检查pnpm是否可用
+if (-not (Get-Command "pnpm" -ErrorAction SilentlyContinue)) {
+    Write-Host "[INFO] 安装pnpm..." -ForegroundColor Yellow
+    npm install -g pnpm
+}
+
+# 安装无名杀依赖（如果node_modules不存在）
+if (-not (Test-Path "node_modules")) {
+    Write-Host "[INFO] 安装无名杀依赖..." -ForegroundColor Yellow
+    pnpm install
+}
+
+# 构建无名杀
+pnpm build
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "[ERROR] 构建无名杀失败" -ForegroundColor Red
+    exit 1
+}
+
+Set-Location $ProjectDir
+
+Write-Host "[STEP 5] 重启服务器..." -ForegroundColor Green
 try {
     pm2 restart tool-website-server
 } catch {

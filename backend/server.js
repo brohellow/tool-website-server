@@ -165,7 +165,7 @@ app.use(express.static(distPath, {
   etag: true,
 }));
 
-const nonamePath = path.join(__dirname, '../noname/apps/core');
+const nonamePath = path.join(__dirname, '../noname/dist');
 app.use('/sanguosha', express.static(nonamePath, {
   index: 'index.html',
   dotfiles: 'deny',
