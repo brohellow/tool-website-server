@@ -591,14 +591,14 @@ const GameRoom = () => {
   const myPlayerData = publicState.players.find(p => p.id === user.id);
 
   return (
-    <div className="page-transition pt-20 min-h-screen bg-gradient-to-br from-amber-900 via-amber-800 to-amber-900">
+    <div className="page-transition pt-24 min-h-screen bg-gradient-to-br from-amber-900 via-amber-800 to-amber-900">
       {error && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 px-6 py-3 bg-red-500 text-white rounded-xl shadow-lg">
+        <div className="fixed top-28 left-1/2 -translate-x-1/2 z-50 px-6 py-3 bg-red-500 text-white rounded-xl shadow-lg">
           {error}
         </div>
       )}
 
-      <div className="fixed top-24 right-4 z-40 flex flex-col gap-2">
+      <div className="fixed top-32 right-4 z-40 flex flex-col gap-2">
         {publicState.gamePhase === 'playing' && (
           <div className="glass-card px-4 py-2">
             <div className="flex items-center gap-3">
