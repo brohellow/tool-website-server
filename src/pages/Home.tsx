@@ -25,6 +25,60 @@ const Home = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
+  // 天气预报状态
+  const [weatherCity, setWeatherCity] = useState('北京');
+  const [weatherData, setWeatherData] = useState<{ 
+    city?: string; 
+    forecast?: { date: string; minTemp: string; maxTemp: string; desc: string; humidity: string; wind: string }[];
+  } | null>(null);
+  const [weatherLoading, setWeatherLoading] = useState(true);
+  
+  const getWeatherEmoji = (desc: string) => {
+    if (desc.includes('晴')) return '☀️';
+    if (desc.includes('云')) return '☁️';
+    if (desc.includes('雨')) return '🌧️';
+    if (desc.includes('雪')) return '❄️';
+    if (desc.includes('雷')) return '⛈️';
+    if (desc.includes('雾')) return '🌫️';
+    if (desc.includes('阴')) return '☁️';
+    return '🌤️';
+  };
+  
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const today = new Date();
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    if (date.toDateString() === today.toDateString()) return '今天';
+    if (date.toDateString() === tomorrow.toDateString()) return '明天';
+    
+    const weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+    return weekDays[date.getDay()];
+  };
+  
+  const fetchWeather = async (city: string) => {
+    setWeatherLoading(true);
+    try {
+      const response = await fetch(`/api/weather-forecast/${encodeURIComponent(city)}`);
+      const data = await response.json();
+      if (data.city && data.forecast && data.forecast.length > 0) {
+        setWeatherData({
+          city: data.city,
+          forecast: data.forecast,
+        });
+      }
+    } catch {
+      console.error('获取天气失败');
+    } finally {
+      setWeatherLoading(false);
+    }
+  };
+  
+  useEffect(() => {
+    fetchWeather(weatherCity);
+  }, [weatherCity]);
+  
   // 从数据库获取数据
   const fetchData = async () => {
     try {
@@ -295,6 +349,91 @@ const Home = () => {
             {featuredTools.map((tool) => (
               <ToolCard key={tool.id} tool={tool} featured />
             ))}
+          </div>
+        </div>
+      </section>
+      
+      {/* 天气预报区域 */}
+      <section className="py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="glass-card rounded-2xl overflow-hidden">
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* 上层：当前城市和今天天气 */}
+              <div className="p-6 flex flex-col items-center justify-center text-center">
+                <div className="flex items-center gap-3 mb-2">
+                  <input
+                    type="text"
+                    value={weatherCity}
+                    onChange={(e) => setWeatherCity(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && fetchWeather(e.currentTarget.value)}
+                    className="bg-transparent border-b border-primary-500/30 px-2 py-1 text-xl font-bold text-white focus:outline-none focus:border-primary-500 text-center"
+                    placeholder="输入城市"
+                  />
+                  <button 
+                    onClick={() => fetchWeather(weatherCity)}
+                    className="p-2 rounded-lg hover:bg-primary-500/20 transition-colors"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary-400">
+                      <circle cx="11" cy="11" r="8"/>
+                      <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    </svg>
+                  </button>
+                </div>
+                {weatherLoading ? (
+                  <div className="w-12 h-12 border-4 border-primary-500/30 border-t-primary-500 rounded-full animate-spin" />
+                ) : weatherData && weatherData.forecast && weatherData.forecast.length > 0 ? (
+                  <>
+                    <div className="text-6xl mb-2">{getWeatherEmoji(weatherData.forecast[0].desc)}</div>
+                    <div className="text-4xl font-bold text-white mb-1">{weatherData.forecast[0].maxTemp}</div>
+                    <div className="text-gray-400">{weatherData.forecast[0].desc}</div>
+                    <div className="flex gap-6 mt-4 text-sm text-gray-400">
+                      <div className="flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
+                        </svg>
+                        {weatherData.forecast[0].humidity}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/>
+                          <path d="M9.6 4.6A2 2 0 1 1 11 8H2"/>
+                          <path d="M12.6 19.4A2 2 0 1 0 14 16H2"/>
+                        </svg>
+                        {weatherData.forecast[0].wind}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-gray-400">无法获取天气数据</div>
+                )}
+              </div>
+              
+             {/* 下层：滚动播放最近几天天气 */}
+              <div className="p-6 bg-dark-800/50 flex flex-col">
+                <h4 className="text-gray-400 text-sm mb-4">未来天气</h4>
+                {weatherData && weatherData.forecast && weatherData.forecast.length > 1 ? (
+                  <div className="flex-1 overflow-hidden relative">
+                    <div className="flex animate-scroll">
+                      {[...weatherData.forecast.slice(1), ...weatherData.forecast.slice(1)].map((day, index) => (
+                        <div key={index} className="flex-shrink-0 w-32 mx-2 bg-dark-700/50 rounded-xl p-3 text-center">
+                          <div className="text-gray-400 text-sm mb-1">{formatDate(day.date)}</div>
+                          <div className="text-3xl mb-1">{getWeatherEmoji(day.desc)}</div>
+                          <div className="text-white text-sm mb-1">{day.desc}</div>
+                          <div className="flex justify-center gap-2 text-xs">
+                            <span className="text-gray-400">{day.minTemp}</span>
+                            <span className="text-white font-semibold">{day.maxTemp}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-dark-800/50 to-transparent z-10"></div>
+                    <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-dark-800/50 to-transparent z-10"></div>
+                  </div>
+                ) : (
+                  <div className="text-gray-400 text-center py-8">暂无预报数据</div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </section>
