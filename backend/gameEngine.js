@@ -9,10 +9,12 @@ const CARD_TYPES = {
   MOUNT_POSITIVE: 'mount_positive',
   MOUNT_NEGATIVE: 'mount_negative',
   TRICK_TAKE: 'trick_take',
-  TRICK_DESTROY: 'trick_destroy',
   TRICK_DRAW: 'trick_draw',
   TRICK_ATTACK_ALL: 'trick_attack_all',
   TRICK_DEFEND_ALL: 'trick_defend_all',
+  TRICK_DUEL: 'trick_duel',
+  TRICK_DELAYED: 'trick_delayed',
+  TRICK_COUNTER: 'trick_counter',
 };
 
 const CARD_NAMES = {
@@ -27,6 +29,8 @@ const WEAPON_CARDS = [
   { name: '方天画戟', attackRange: 4, description: '当你使用的【杀】是你的最后一张手牌时，你可以此【杀】指定至多三名角色为目标' },
   { name: '麒麟弓', attackRange: 5, description: '你使用【杀】对目标角色造成伤害时，若其装备区有坐骑牌，你可以弃掉一张坐骑牌' },
   { name: '寒冰剑', attackRange: 2, description: '你使用【杀】造成伤害时，可以防止此伤害，改为弃掉目标角色两张牌' },
+  { name: '雌雄双股剑', attackRange: 2, description: '你使用【杀】指定一名异性角色为目标后，你可以令其选择一项：1. 弃一张手牌；2. 让你摸一张牌' },
+  { name: '贯石斧', attackRange: 3, description: '当你使用的【杀】被【闪】抵消时，你可以弃两张牌，令此【杀】仍然造成伤害' },
 ];
 
 const ARMOR_CARDS = [
@@ -51,6 +55,10 @@ const TRICK_CARDS = [
   { type: 'trick_attack_all', name: '万箭齐发', description: '每名其他角色使用一张【闪】，否则受到1点伤害' },
   { type: 'trick_defend_all', name: '桃园结义', description: '每名角色回复1点体力' },
   { type: 'trick_defend_all', name: '铁索连环', description: '选择一至两名角色，横置或重置这些角色' },
+  { type: 'trick_duel', name: '决斗', description: '对一名角色使用。由你开始，你和目标角色轮流打出一张【杀】。首先不出【杀】的角色受到1点伤害' },
+  { type: 'trick_delayed', name: '乐不思蜀', description: '延时锦囊。对一名角色使用，将此牌置于其判定区。其回合开始阶段进行判定：若结果不为红桃，则跳过其出牌阶段' },
+  { type: 'trick_delayed', name: '闪电', description: '延时锦囊。此牌置于你的判定区。你的回合开始阶段进行判定：若结果为黑桃2~9，则你受到3点伤害，将此牌弃置；否则将此牌移动到下一名角色的判定区' },
+  { type: 'trick_counter', name: '无懈可击', description: '在锦囊牌生效前，你可以打出此牌抵消该锦囊牌的效果' },
 ];
 
 const WARRIORS = [
@@ -76,43 +84,74 @@ const WARRIORS = [
   { id: 'w20', name: '吕布', title: '无双', hp: 4, skill: '无双', skillDesc: '锁定技，当你使用【杀】指定一名角色为目标后，该角色需使用两张【闪】才能抵消；当你使用【决斗】指定一名角色为目标后，或成为【决斗】的目标时，你每次需要打出两张【杀】', icon: '吕' },
 ];
 
+const SUITS = ['♠', '♥', '♣', '♦'];
+const SUIT_COLORS = {
+  '♠': 'black',
+  '♥': 'red',
+  '♣': 'black',
+  '♦': 'red',
+};
+
 const createDeck = () => {
   const deck = [];
   
-  // 杀：30张
-  for (let i = 0; i < 30; i++) {
+  // 基本牌 - 标准三国杀配置
+  // 杀：30张（黑桃7张、红桃3张、梅花7张、方块3张 + 4种花色各2张 = 30张）
+  const attackCards = [
+    ...generateCards(7, '♠'),
+    ...generateCards(3, '♥'),
+    ...generateCards(7, '♣'),
+    ...generateCards(3, '♦'),
+    ...generateCards(2, '♠'),
+    ...generateCards(2, '♥'),
+    ...generateCards(2, '♣'),
+    ...generateCards(4, '♦'),
+  ];
+  attackCards.forEach((card, i) => {
     deck.push({
       id: uuidv4(),
       type: CARD_TYPES.ATTACK,
       name: CARD_NAMES.ATTACK,
-      suit: ['♠', '♥', '♣', '♦'][i % 4],
-      value: Math.floor(i / 4) + 1,
+      suit: card.suit,
+      value: card.value,
+      color: SUIT_COLORS[card.suit],
     });
-  }
+  });
   
-  // 闪：15张
-  for (let i = 0; i < 15; i++) {
+  // 闪：15张（红桃6张、方块9张）
+  const defendCards = [
+    ...generateCards(6, '♥'),
+    ...generateCards(9, '♦'),
+  ];
+  defendCards.forEach((card, i) => {
     deck.push({
       id: uuidv4(),
       type: CARD_TYPES.DEFEND,
       name: CARD_NAMES.DEFEND,
-      suit: ['♠', '♥', '♣', '♦'][i % 4],
-      value: Math.floor(i / 4) + 1,
+      suit: card.suit,
+      value: card.value,
+      color: SUIT_COLORS[card.suit],
     });
-  }
+  });
   
-  // 桃：8张
-  for (let i = 0; i < 8; i++) {
+  // 桃：8张（红桃7张、方块1张）
+  const healCards = [
+    ...generateCards(7, '♥'),
+    ...generateCards(1, '♦'),
+  ];
+  healCards.forEach((card, i) => {
     deck.push({
       id: uuidv4(),
       type: CARD_TYPES.HEAL,
       name: CARD_NAMES.HEAL,
-      suit: ['♠', '♥', '♣', '♦'][i % 4],
-      value: Math.floor(i / 4) + 1,
+      suit: card.suit,
+      value: card.value,
+      color: SUIT_COLORS[card.suit],
     });
-  }
+  });
 
   // 武器：7张
+  const weaponSuits = ['♠', '♣', '♠', '♣', '♦', '♥', '♣'];
   WEAPON_CARDS.forEach((weapon, index) => {
     deck.push({
       id: uuidv4(),
@@ -120,24 +159,28 @@ const createDeck = () => {
       name: weapon.name,
       attackRange: weapon.attackRange,
       description: weapon.description,
-      suit: ['♠', '♥', '♣', '♦'][index % 4],
-      value: Math.floor(index / 4) + 10,
+      suit: weaponSuits[index],
+      value: 10 + index,
+      color: SUIT_COLORS[weaponSuits[index]],
     });
   });
 
   // 防具：2张
+  const armorSuits = ['♣', '♠'];
   ARMOR_CARDS.forEach((armor, index) => {
     deck.push({
       id: uuidv4(),
       type: CARD_TYPES.ARMOR,
       name: armor.name,
       description: armor.description,
-      suit: ['♠', '♥', '♣', '♦'][index % 4],
-      value: Math.floor(index / 4) + 10,
+      suit: armorSuits[index],
+      value: 10 + index,
+      color: SUIT_COLORS[armorSuits[index]],
     });
   });
 
   // 坐骑：5张
+  const mountSuits = ['♥', '♦', '♠', '♠', '♣'];
   MOUNT_CARDS.forEach((mount, index) => {
     deck.push({
       id: uuidv4(),
@@ -145,25 +188,40 @@ const createDeck = () => {
       name: mount.name,
       mountType: mount.type,
       description: mount.description,
-      suit: ['♠', '♥', '♣', '♦'][index % 4],
-      value: Math.floor(index / 4) + 10,
+      suit: mountSuits[index],
+      value: 10 + index,
+      color: SUIT_COLORS[mountSuits[index]],
     });
   });
 
-  // 锦囊牌：10张
+  // 锦囊牌
+  const trickSuits = ['♠', '♠', '♥', '♥', '♠', '♥', '♦', '♦', '♠', '♠', '♣', '♠', '♦', '♠'];
   TRICK_CARDS.forEach((trick, index) => {
     deck.push({
       id: uuidv4(),
       type: trick.type,
       name: trick.name,
       description: trick.description,
-      suit: ['♠', '♥', '♣', '♦'][index % 4],
-      value: Math.floor(index / 4) + 10,
+      suit: trickSuits[index],
+      value: 10 + index,
+      color: SUIT_COLORS[trickSuits[index]],
     });
   });
   
   return shuffleDeck(deck);
 };
+
+function generateCards(count, suit) {
+  const cards = [];
+  const values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
+  for (let i = 0; i < count; i++) {
+    cards.push({
+      suit,
+      value: values[i % values.length],
+    });
+  }
+  return cards;
+}
 
 const shuffleDeck = (deck) => {
   const shuffled = [...deck];
@@ -202,6 +260,13 @@ class GameEngine {
         isReady: false,
         warrior: null,
         hasSelectedWarrior: false,
+        attackCount: 0,
+        hasUsedAttackThisTurn: false,
+        hasUsedSkillThisTurn: false,
+        givenCardsCount: 0,
+        delayedEffects: [],
+        isLocked: false,
+        isChained: false,
       }],
       deck: [],
       discardPile: [],
@@ -210,6 +275,7 @@ class GameEngine {
       turnNumber: 1,
       logs: [`房间创建成功！房主：${hostName}`],
       availableWarriors: [],
+      turnPhase: 'draw',
     });
     return roomId;
   }
@@ -238,6 +304,13 @@ class GameEngine {
       isReady: false,
       warrior: null,
       hasSelectedWarrior: false,
+      attackCount: 0,
+      hasUsedAttackThisTurn: false,
+      hasUsedSkillThisTurn: false,
+      givenCardsCount: 0,
+      delayedEffects: [],
+      isLocked: false,
+      isChained: false,
     });
     room.logs.push(`${playerName} 加入了房间`);
     return room;
@@ -322,6 +395,13 @@ class GameEngine {
       player.maxHealth = 4;
       player.warrior = null;
       player.hasSelectedWarrior = false;
+      player.attackCount = 0;
+      player.hasUsedAttackThisTurn = false;
+      player.hasUsedSkillThisTurn = false;
+      player.givenCardsCount = 0;
+      player.delayedEffects = [];
+      player.isLocked = false;
+      player.isChained = false;
     });
 
     room.deck = createDeck();
@@ -329,6 +409,7 @@ class GameEngine {
     room.currentPlayerIndex = 0;
     room.gamePhase = 'selecting_warrior';
     room.turnNumber = 1;
+    room.turnPhase = 'draw';
 
     room.logs.push('进入选将阶段！');
     room.logs.push('每位玩家请选择一名武将');
@@ -382,6 +463,30 @@ class GameEngine {
     return room;
   }
 
+  getDistance(room, fromPlayer, toPlayer) {
+    const fromIndex = room.players.findIndex(p => p.id === fromPlayer.id);
+    const toIndex = room.players.findIndex(p => p.id === toPlayer.id);
+    let distance = Math.min(
+      Math.abs(toIndex - fromIndex),
+      room.players.length - Math.abs(toIndex - fromIndex)
+    );
+    
+    if (fromPlayer.equipment.positiveMount) {
+      distance -= 1;
+    }
+    if (toPlayer.equipment.negativeMount) {
+      distance += 1;
+    }
+    
+    return Math.max(1, distance);
+  }
+
+  canAttackTarget(room, attacker, target) {
+    const attackRange = attacker.equipment.weapon ? attacker.equipment.weapon.attackRange : 1;
+    const distance = this.getDistance(room, attacker, target);
+    return distance <= attackRange;
+  }
+
   playCard(roomId, playerId, cardId, targetPlayerId) {
     const room = this.rooms.get(roomId);
     if (!room) return null;
@@ -395,9 +500,142 @@ class GameEngine {
     const card = player.handCards[cardIndex];
     player.handCards.splice(cardIndex, 1);
 
-    let result = { success: true, message: '', targetDefended: false };
+    let result = { success: true, message: '', targetDefended: false, cardUsed: card };
 
-    if (card.type === CARD_TYPES.ATTACK) {
+    if (player.warrior?.skill === '仁德') {
+      if (!targetPlayerId) {
+        result.success = false;
+        result.message = '请选择要给予手牌的角色';
+        player.handCards.push(card);
+        return result;
+      }
+      const targetPlayer = room.players.find(p => p.id === targetPlayerId);
+      if (!targetPlayer) {
+        result.success = false;
+        result.message = '目标玩家不存在';
+        player.handCards.push(card);
+        return result;
+      }
+      targetPlayer.handCards.push(card);
+      room.logs.push(`${player.name} 将【${card.name}】交给了${targetPlayer.name}`);
+      const givenCount = player.givenCardsCount ? player.givenCardsCount + 1 : 1;
+      player.givenCardsCount = givenCount;
+      if (givenCount >= 2 && player.health < player.maxHealth) {
+        player.health++;
+        room.logs.push(`${player.name} 发动仁德，回复了1点体力`);
+      }
+      return result;
+    }
+
+    if (player.warrior?.skill === '苦肉') {
+      if (player.hasUsedSkillThisTurn) {
+        result.success = false;
+        result.message = '本回合已使用过苦肉';
+        player.handCards.push(card);
+        return result;
+      }
+      if (player.health <= 1) {
+        result.success = false;
+        result.message = '体力不足，无法使用苦肉';
+        player.handCards.push(card);
+        return result;
+      }
+      player.health--;
+      player.hasUsedSkillThisTurn = true;
+      room.logs.push(`${player.name} 发动苦肉，失去1点体力`);
+      for (let i = 0; i < 2; i++) {
+        if (room.deck.length > 0) {
+          player.handCards.push(room.deck.pop());
+        }
+      }
+      room.logs.push(`${player.name} 摸了两张牌`);
+      return result;
+    }
+
+    if (player.warrior?.skill === '青囊') {
+      if (player.hasUsedSkillThisTurn) {
+        result.success = false;
+        result.message = '本回合已使用过青囊';
+        player.handCards.push(card);
+        return result;
+      }
+      if (!targetPlayerId) {
+        result.success = false;
+        result.message = '请选择受伤的角色';
+        player.handCards.push(card);
+        return result;
+      }
+      const targetPlayer = room.players.find(p => p.id === targetPlayerId);
+      if (!targetPlayer || targetPlayer.health >= targetPlayer.maxHealth) {
+        result.success = false;
+        result.message = '目标玩家不存在或未受伤';
+        player.handCards.push(card);
+        return result;
+      }
+      player.hasUsedSkillThisTurn = true;
+      targetPlayer.health++;
+      room.logs.push(`${player.name} 发动青囊，令${targetPlayer.name}恢复了1点体力`);
+      room.discardPile.push(card);
+      return result;
+    }
+
+    if (player.warrior?.skill === '制衡') {
+      if (player.hasUsedSkillThisTurn) {
+        result.success = false;
+        result.message = '本回合已使用过制衡';
+        player.handCards.push(card);
+        return result;
+      }
+      player.hasUsedSkillThisTurn = true;
+      const discardCount = player.handCards.length + 1;
+      player.handCards.forEach(c => room.discardPile.push(c));
+      player.handCards = [];
+      for (let i = 0; i < discardCount; i++) {
+        if (room.deck.length > 0) {
+          player.handCards.push(room.deck.pop());
+        }
+      }
+      room.logs.push(`${player.name} 发动制衡，弃掉${discardCount}张牌，摸了${discardCount}张牌`);
+      return result;
+    }
+
+    if (player.warrior?.skill === '奇袭' && card.color === 'black') {
+      if (!targetPlayerId) {
+        result.success = false;
+        result.message = '请选择过河拆桥的目标';
+        player.handCards.push(card);
+        return result;
+      }
+      const targetPlayer = room.players.find(p => p.id === targetPlayerId);
+      if (!targetPlayer) {
+        result.success = false;
+        result.message = '目标玩家不存在';
+        player.handCards.push(card);
+        return result;
+      }
+      room.logs.push(`${player.name} 将【${card.name}】当【过河拆桥】使用`);
+      const targetCards = [...targetPlayer.handCards];
+      if (targetCards.length > 0) {
+        const randomCard = targetCards[Math.floor(Math.random() * targetCards.length)];
+        const idx = targetPlayer.handCards.findIndex(c => c.id === randomCard.id);
+        if (idx !== -1) {
+          targetPlayer.handCards.splice(idx, 1);
+          room.discardPile.push(randomCard);
+          room.logs.push(`${player.name} 弃掉了 ${targetPlayer.name} 的【${randomCard.name}】`);
+        }
+      }
+      room.discardPile.push(card);
+      return result;
+    }
+
+    const isUsingAsAttack = (card.type === CARD_TYPES.ATTACK) ||
+      (player.warrior?.skill === '武圣' && card.color === 'red') ||
+      (player.warrior?.skill === '龙胆' && card.type === CARD_TYPES.DEFEND);
+
+    const isUsingAsDefend = (card.type === CARD_TYPES.DEFEND) ||
+      (player.warrior?.skill === '龙胆' && card.type === CARD_TYPES.ATTACK);
+
+    if (isUsingAsAttack) {
       if (!targetPlayerId) {
         result.success = false;
         result.message = '请选择攻击目标';
@@ -406,18 +644,47 @@ class GameEngine {
       }
 
       const targetPlayer = room.players.find(p => p.id === targetPlayerId);
-      if (!targetPlayer) {
+      if (!targetPlayer || targetPlayer.health <= 0) {
         result.success = false;
-        result.message = '目标玩家不存在';
+        result.message = '目标玩家不存在或已阵亡';
         player.handCards.push(card);
         return result;
       }
 
-      room.logs.push(`${player.name} 对 ${targetPlayer.name} 使用了【杀】`);
-      result.targetDefended = false;
+      if (!this.canAttackTarget(room, player, targetPlayer)) {
+        result.success = false;
+        result.message = '目标距离太远';
+        player.handCards.push(card);
+        return result;
+      }
+
+      if (player.hasUsedAttackThisTurn && !player.warrior?.skill?.includes('咆哮')) {
+        result.success = false;
+        result.message = '本回合已使用过杀';
+        player.handCards.push(card);
+        return result;
+      }
+
+      player.hasUsedAttackThisTurn = true;
+      player.attackCount++;
+
+      const attackCardName = card.type === CARD_TYPES.ATTACK ? '【杀】' : `【${card.name}】当作【杀】`;
+      if (player.warrior?.skill === '武圣') {
+        room.logs.push(`${player.name} 发动武圣，将${attackCardName}使用`);
+      } else if (player.warrior?.skill === '龙胆') {
+        room.logs.push(`${player.name} 发动龙胆，将${attackCardName}使用`);
+      } else {
+        room.logs.push(`${player.name} 对 ${targetPlayer.name} 使用了【杀】`);
+      }
+      
+      this.resolveAttack(room, player, targetPlayer, card);
       room.discardPile.push(card);
-    } else if (card.type === CARD_TYPES.DEFEND) {
-      room.logs.push(`${player.name} 使用了【闪】`);
+    } else if (isUsingAsDefend) {
+      if (player.warrior?.skill === '龙胆') {
+        room.logs.push(`${player.name} 发动龙胆，将【${card.name}】当作【闪】使用`);
+      } else {
+        room.logs.push(`${player.name} 使用了【闪】`);
+      }
       result.targetDefended = true;
       room.discardPile.push(card);
     } else if (card.type === CARD_TYPES.HEAL) {
@@ -469,6 +736,19 @@ class GameEngine {
         return result;
       }
       if (card.name === '顺手牵羊') {
+        if (targetPlayer.warrior?.skill === '谦逊') {
+          result.success = false;
+          result.message = `${targetPlayer.name} 的谦逊使其不能成为顺手牵羊的目标`;
+          player.handCards.push(card);
+          return result;
+        }
+        const distance = this.getDistance(room, player, targetPlayer);
+        if (distance > 1) {
+          result.success = false;
+          result.message = '目标距离太远';
+          player.handCards.push(card);
+          return result;
+        }
         room.logs.push(`${player.name} 对 ${targetPlayer.name} 使用了【顺手牵羊】`);
         const targetCards = [...targetPlayer.handCards];
         if (targetCards.length > 0) {
@@ -520,12 +800,7 @@ class GameEngine {
           if (p.id !== playerId && p.health > 0) {
             const hasAttack = p.handCards.some(c => c.type === CARD_TYPES.ATTACK);
             if (!hasAttack) {
-              p.health--;
-              room.logs.push(`${p.name} 受到1点伤害`);
-              if (p.health <= 0) {
-                p.health = 0;
-                room.logs.push(`${p.name} 阵亡了！`);
-              }
+              this.dealDamage(room, p, 1);
             } else {
               room.logs.push(`${p.name} 使用【杀】抵消了南蛮入侵`);
             }
@@ -537,12 +812,7 @@ class GameEngine {
           if (p.id !== playerId && p.health > 0) {
             const hasDefend = p.handCards.some(c => c.type === CARD_TYPES.DEFEND);
             if (!hasDefend) {
-              p.health--;
-              room.logs.push(`${p.name} 受到1点伤害`);
-              if (p.health <= 0) {
-                p.health = 0;
-                room.logs.push(`${p.name} 阵亡了！`);
-              }
+              this.dealDamage(room, p, 1);
             } else {
               room.logs.push(`${p.name} 使用【闪】抵消了万箭齐发`);
             }
@@ -550,7 +820,6 @@ class GameEngine {
         });
       }
       room.discardPile.push(card);
-      this.checkGameOver(room);
     } else if (card.type === CARD_TYPES.TRICK_DEFEND_ALL) {
       if (card.name === '桃园结义') {
         room.logs.push(`${player.name} 使用了【桃园结义】`);
@@ -560,12 +829,373 @@ class GameEngine {
             room.logs.push(`${p.name} 恢复了1点体力`);
           }
         });
+      } else if (card.name === '铁索连环') {
+        room.logs.push(`${player.name} 使用了【铁索连环】`);
+        if (!targetPlayerId) {
+          room.logs.push(`${player.name} 重铸了【铁索连环】`);
+          if (room.deck.length > 0) {
+            player.handCards.push(room.deck.pop());
+          }
+        } else {
+          const targetPlayer = room.players.find(p => p.id === targetPlayerId);
+          if (targetPlayer) {
+            targetPlayer.isChained = !targetPlayer.isChained;
+            room.logs.push(`${targetPlayer.name} ${targetPlayer.isChained ? '被横置' : '被重置'}`);
+          }
+        }
+        if (player.warrior?.skill === '连环') {
+          room.logs.push(`${player.name} 发动连环，摸一张牌`);
+          if (room.deck.length > 0) {
+            player.handCards.push(room.deck.pop());
+          }
+        }
       }
       room.discardPile.push(card);
+    } else if (card.type === CARD_TYPES.TRICK_DUEL) {
+      if (!targetPlayerId) {
+        result.success = false;
+        result.message = '请选择决斗目标';
+        player.handCards.push(card);
+        return result;
+      }
+      const targetPlayer = room.players.find(p => p.id === targetPlayerId);
+      if (!targetPlayer || targetPlayer.health <= 0) {
+        result.success = false;
+        result.message = '目标玩家不存在或已阵亡';
+        player.handCards.push(card);
+        return result;
+      }
+      room.logs.push(`${player.name} 对 ${targetPlayer.name} 使用了【决斗】`);
+      this.resolveDuel(room, player, targetPlayer);
+      room.discardPile.push(card);
+    } else if (card.type === CARD_TYPES.TRICK_DELAYED) {
+      if (card.name === '乐不思蜀') {
+        if (!targetPlayerId) {
+          result.success = false;
+          result.message = '请选择目标角色';
+          player.handCards.push(card);
+          return result;
+        }
+        const targetPlayer = room.players.find(p => p.id === targetPlayerId);
+        if (!targetPlayer || targetPlayer.health <= 0) {
+          result.success = false;
+          result.message = '目标玩家不存在或已阵亡';
+          player.handCards.push(card);
+          return result;
+        }
+        if (targetPlayer.warrior?.skill === '谦逊') {
+          result.success = false;
+          result.message = `${targetPlayer.name} 的谦逊使其不能成为乐不思蜀的目标`;
+          player.handCards.push(card);
+          return result;
+        }
+        targetPlayer.delayedEffects.push({
+          type: 'locked',
+          name: '乐不思蜀',
+        });
+        room.logs.push(`${player.name} 对 ${targetPlayer.name} 使用了【乐不思蜀】`);
+        room.discardPile.push(card);
+      } else if (card.name === '闪电') {
+        player.delayedEffects.push({
+          type: 'lightning',
+          name: '闪电',
+        });
+        room.logs.push(`${player.name} 使用了【闪电】`);
+        room.discardPile.push(card);
+      }
+    } else if (card.type === CARD_TYPES.TRICK_COUNTER) {
+      if (card.name === '无懈可击') {
+        room.logs.push(`${player.name} 使用了【无懈可击】`);
+        room.discardPile.push(card);
+        if (room.pendingTrick) {
+          room.logs.push(`${player.name} 抵消了${room.pendingTrick.card.name}的效果`);
+          room.pendingTrick = null;
+        } else {
+          room.logs.push(`${player.name} 使用【无懈可击】但没有可以抵消的锦囊`);
+        }
+      }
     }
 
     this.checkGameOver(room);
     return result;
+  }
+
+  resolveAttack(room, attacker, target, card) {
+    const targetHasDefend = target.handCards.some(c => c.type === CARD_TYPES.DEFEND);
+    const targetHasShield = target.equipment.armor?.name === '八卦阵';
+    const targetHasRenwang = target.equipment.armor?.name === '仁王盾';
+    
+    let needsTwoDefend = attacker.warrior?.skill?.includes('无双');
+    let defendCount = 0;
+    let defended = false;
+    let cannotDefend = false;
+
+    if (targetHasRenwang && card.color === 'black') {
+      room.logs.push(`${target.name} 的仁王盾使黑色【杀】无效`);
+      defended = true;
+      return;
+    }
+
+    if (attacker.warrior?.skill === '铁骑') {
+      const roll = Math.floor(Math.random() * 13) + 1;
+      const isRed = roll >= 1 && roll <= 6;
+      room.logs.push(`${attacker.name} 发动铁骑，判定结果：${roll}`);
+      if (isRed) {
+        room.logs.push(`${target.name} 不能使用【闪】`);
+        cannotDefend = true;
+      }
+    } else if (attacker.warrior?.skill === '烈弓') {
+      if (target.handCards.length > attacker.handCards.length) {
+        const roll = Math.floor(Math.random() * 13) + 1;
+        const isRed = roll >= 1 && roll <= 6;
+        room.logs.push(`${attacker.name} 发动烈弓，判定结果：${roll}`);
+        if (isRed) {
+          room.logs.push(`${target.name} 不能使用【闪】`);
+          cannotDefend = true;
+        }
+      }
+    }
+
+    if (needsTwoDefend) {
+      room.logs.push(`${target.name} 需要使用两张【闪】才能抵消`);
+      if (!cannotDefend && targetHasDefend) {
+        defendCount = 2;
+        if (target.handCards.filter(c => c.type === CARD_TYPES.DEFEND).length >= 2) {
+          defended = true;
+          room.logs.push(`${target.name} 使用两张【闪】抵消了【杀】`);
+        }
+      }
+    } else {
+      if (!cannotDefend && targetHasDefend) {
+        defendCount = 1;
+        defended = true;
+        room.logs.push(`${target.name} 使用【闪】抵消了【杀】`);
+      } else if (!cannotDefend && targetHasShield) {
+        const roll = Math.random() > 0.5;
+        if (roll) {
+          defended = true;
+          room.logs.push(`${target.name} 发动八卦阵，判定成功，抵消了【杀】`);
+        }
+      }
+    }
+
+    if (!defended) {
+      this.resolveWeaponEffect(room, attacker, target, card);
+      this.dealDamage(room, target, 1, attacker);
+    } else {
+      this.resolveWeaponDefendedEffect(room, attacker, target, card);
+    }
+  }
+
+  resolveWeaponEffect(room, attacker, target, card) {
+    const weapon = attacker.equipment.weapon;
+    if (!weapon) return;
+
+    if (weapon.name === '寒冰剑') {
+      room.logs.push(`${attacker.name} 发动寒冰剑效果`);
+      for (let i = 0; i < 2; i++) {
+        if (target.handCards.length > 0) {
+          const randomCard = target.handCards[Math.floor(Math.random() * target.handCards.length)];
+          const idx = target.handCards.findIndex(c => c.id === randomCard.id);
+          if (idx !== -1) {
+            target.handCards.splice(idx, 1);
+            room.discardPile.push(randomCard);
+          }
+        }
+      }
+    } else if (weapon.name === '麒麟弓') {
+      if (target.equipment.positiveMount || target.equipment.negativeMount) {
+        room.logs.push(`${attacker.name} 发动麒麟弓效果`);
+        if (target.equipment.positiveMount) {
+          room.discardPile.push(target.equipment.positiveMount);
+          target.equipment.positiveMount = null;
+        } else if (target.equipment.negativeMount) {
+          room.discardPile.push(target.equipment.negativeMount);
+          target.equipment.negativeMount = null;
+        }
+      }
+    } else if (weapon.name === '方天画戟') {
+      if (attacker.handCards.length === 0) {
+        room.logs.push(`${attacker.name} 发动方天画戟效果，此【杀】可指定至多三名角色`);
+        room.players.forEach(p => {
+          if (p.id !== attacker.id && p.health > 0) {
+            this.dealDamage(room, p, 1, attacker);
+          }
+        });
+      }
+    } else if (weapon.name === '雌雄双股剑') {
+      room.logs.push(`${attacker.name} 发动雌雄双股剑效果`);
+      if (target.handCards.length > 0) {
+        const randomCard = target.handCards[Math.floor(Math.random() * target.handCards.length)];
+        const idx = target.handCards.findIndex(c => c.id === randomCard.id);
+        if (idx !== -1) {
+          target.handCards.splice(idx, 1);
+          room.discardPile.push(randomCard);
+          room.logs.push(`${target.name} 弃掉一张手牌`);
+        }
+      }
+    }
+  }
+
+  resolveWeaponDefendedEffect(room, attacker, target, card) {
+    const weapon = attacker.equipment.weapon;
+    if (!weapon) return;
+
+    if (weapon.name === '青龙偃月刀') {
+      room.logs.push(`${attacker.name} 发动青龙偃月刀效果，可再次使用【杀】`);
+      attacker.hasUsedAttackThisTurn = false;
+    } else if (weapon.name === '贯石斧') {
+      if (attacker.handCards.length >= 2) {
+        room.logs.push(`${attacker.name} 发动贯石斧效果，弃两张牌使【杀】仍然造成伤害`);
+        for (let i = 0; i < 2; i++) {
+          if (attacker.handCards.length > 0) {
+            room.discardPile.push(attacker.handCards.pop());
+          }
+        }
+        this.dealDamage(room, target, 1, attacker);
+      }
+    }
+  }
+
+  resolveDuel(room, initiator, target) {
+    let initiatorNeedsTwo = initiator.warrior?.skill?.includes('无双');
+    let targetNeedsTwo = target.warrior?.skill?.includes('无双');
+
+    let initiatorAttackCount = initiatorNeedsTwo ? 2 : 1;
+    let targetAttackCount = targetNeedsTwo ? 2 : 1;
+
+    const initiatorAttacks = initiator.handCards.filter(c => c.type === CARD_TYPES.ATTACK).length;
+    const targetAttacks = target.handCards.filter(c => c.type === CARD_TYPES.ATTACK).length;
+
+    if (initiatorAttacks >= initiatorAttackCount) {
+      room.logs.push(`${initiator.name} 使用${initiatorAttackCount}张【杀】`);
+      if (targetAttacks >= targetAttackCount) {
+        room.logs.push(`${target.name} 使用${targetAttackCount}张【杀】`);
+        room.logs.push('决斗平局');
+      } else {
+        room.logs.push(`${target.name} 无法打出足够的【杀】`);
+        this.dealDamage(room, target, 1, initiator);
+      }
+    } else {
+      room.logs.push(`${initiator.name} 无法打出足够的【杀】`);
+      this.dealDamage(room, initiator, 1, target);
+    }
+  }
+
+  dealDamage(room, target, amount, source = null) {
+    for (let i = 0; i < amount; i++) {
+      if (target.health <= 0) break;
+      
+      const hasShield = target.equipment.armor?.name === '八卦阵';
+      if (hasShield && Math.random() > 0.5) {
+        room.logs.push(`${target.name} 发动八卦阵，判定成功，抵消了1点伤害`);
+        continue;
+      }
+      
+      target.health--;
+      room.logs.push(`${target.name} 受到1点伤害，当前体力：${target.health}`);
+
+      if (source && source.warrior?.skill === '奸雄') {
+        room.logs.push(`${source.name} 发动奸雄，获得造成伤害的牌`);
+      }
+
+      if (target.warrior?.skill === '反馈') {
+        if (source) {
+          room.logs.push(`${target.name} 发动反馈，获得${source.name}的一张牌`);
+          if (source.handCards.length > 0) {
+            const randomCard = source.handCards[Math.floor(Math.random() * source.handCards.length)];
+            const idx = source.handCards.findIndex(c => c.id === randomCard.id);
+            if (idx !== -1) {
+              source.handCards.splice(idx, 1);
+              target.handCards.push(randomCard);
+            }
+          }
+        }
+      }
+
+      if (target.warrior?.skill === '刚烈') {
+        const roll = Math.floor(Math.random() * 13) + 1;
+        const isRed = roll >= 1 && roll <= 6;
+        if (!isRed && source) {
+          room.logs.push(`${target.name} 发动刚烈，${source.name}需要弃两张牌或受到1点伤害`);
+          if (source.handCards.length < 2) {
+            this.dealDamage(room, source, 1, target);
+          } else {
+            for (let j = 0; j < 2; j++) {
+              if (source.handCards.length > 0) {
+                room.discardPile.push(source.handCards.pop());
+              }
+            }
+            room.logs.push(`${source.name} 弃掉了两张牌`);
+          }
+        }
+      }
+
+      if (target.warrior?.skill === '遗计') {
+        room.logs.push(`${target.name} 发动遗计，摸两张牌`);
+        for (let j = 0; j < 2; j++) {
+          if (room.deck.length > 0) {
+            target.handCards.push(room.deck.pop());
+          }
+        }
+      }
+
+      if (target.isChained) {
+        this.resolveChainDamage(room, target, source);
+      }
+
+      if (target.health <= 0) {
+        this.handleDeath(room, target, source);
+      }
+    }
+  }
+
+  resolveChainDamage(room, target, source) {
+    room.logs.push(`${target.name} 的铁索连环传导伤害！`);
+    room.players.forEach(p => {
+      if (p.id !== target.id && p.isChained && p.health > 0) {
+        room.logs.push(`${p.name} 受到传导的1点伤害`);
+        p.health--;
+        if (p.health <= 0) {
+          this.handleDeath(room, p, source);
+        }
+      }
+    });
+    target.isChained = false;
+    room.players.forEach(p => { p.isChained = false; });
+  }
+
+  handleDeath(room, target, source = null) {
+    target.health = 0;
+    room.logs.push(`${target.name} 阵亡了！`);
+    
+    if (target.warrior?.skill === '武魂') {
+      room.logs.push(`${target.name} 发动武魂，对伤害来源造成1点伤害`);
+      if (source) {
+        this.dealDamage(room, source, 1);
+      }
+    }
+
+    if (source && source.warrior?.skill === '枭姬') {
+      const dropCount = Math.min(target.handCards.length, 2);
+      room.logs.push(`${source.name} 发动枭姬，获得${dropCount}张牌`);
+      for (let j = 0; j < dropCount; j++) {
+        if (target.handCards.length > 0) {
+          source.handCards.push(target.handCards.pop());
+        }
+      }
+    }
+
+    if (source && source.warrior?.skill === '恩怨') {
+      if (target.health < target.maxHealth) {
+        room.logs.push(`${source.name} 发动恩怨，${target.name}需交给${source.name}一张红桃牌`);
+      } else {
+        room.logs.push(`${source.name} 发动恩怨，对${target.name}造成1点伤害`);
+        this.dealDamage(room, target, 1, source);
+      }
+    }
+
+    this.checkGameOver(room);
   }
 
   takeDamage(roomId, targetPlayerId, amount = 1) {
@@ -593,6 +1223,32 @@ class GameEngine {
     if (room.gamePhase !== 'playing') return null;
     if (room.players[room.currentPlayerIndex].id !== playerId) return null;
 
+    const currentPlayer = room.players[room.currentPlayerIndex];
+    
+    currentPlayer.hasUsedAttackThisTurn = false;
+    currentPlayer.attackCount = 0;
+    currentPlayer.hasUsedSkillThisTurn = false;
+    currentPlayer.givenCardsCount = 0;
+
+    const hasUsedAttack = currentPlayer.attackCount > 0;
+    const hasKeji = currentPlayer.warrior?.skill === '克己';
+    
+    if (!hasKeji || hasUsedAttack) {
+      const handLimit = currentPlayer.warrior?.skill === '英姿' ? 4 : currentPlayer.maxHealth;
+      if (currentPlayer.handCards.length > handLimit) {
+        const excess = currentPlayer.handCards.length - handLimit;
+        room.logs.push(`${currentPlayer.name} 弃掉${excess}张牌`);
+        for (let i = 0; i < excess; i++) {
+          if (currentPlayer.handCards.length > handLimit) {
+            const card = currentPlayer.handCards.pop();
+            room.discardPile.push(card);
+          }
+        }
+      }
+    } else {
+      room.logs.push(`${currentPlayer.name} 发动克己，跳过弃牌阶段`);
+    }
+
     room.currentPlayerIndex = (room.currentPlayerIndex + 1) % room.players.length;
 
     if (room.currentPlayerIndex === 0) {
@@ -600,16 +1256,92 @@ class GameEngine {
       room.logs.push(`第 ${room.turnNumber} 回合开始`);
     }
 
-    const currentPlayer = room.players[room.currentPlayerIndex];
-    room.logs.push(`${currentPlayer.name} 的回合`);
+    while (true) {
+      const nextPlayer = room.players[room.currentPlayerIndex];
+      
+      this.resolveDelayedEffects(room, nextPlayer);
 
-    for (let i = 0; i < 2; i++) {
-      if (room.deck.length > 0) {
-        currentPlayer.handCards.push(room.deck.pop());
+      if (!nextPlayer.isLocked) {
+        room.logs.push(`${nextPlayer.name} 的回合`);
+        
+        if (nextPlayer.warrior?.skill === '突袭') {
+          room.logs.push(`${nextPlayer.name} 发动突袭，放弃摸牌`);
+          const otherPlayers = room.players.filter(p => p.id !== nextPlayer.id && p.health > 0 && p.handCards.length > 0);
+          for (let i = 0; i < 2 && otherPlayers.length > 0; i++) {
+            const target = otherPlayers[Math.floor(Math.random() * otherPlayers.length)];
+            const randomCard = target.handCards[Math.floor(Math.random() * target.handCards.length)];
+            const idx = target.handCards.findIndex(c => c.id === randomCard.id);
+            if (idx !== -1) {
+              target.handCards.splice(idx, 1);
+              nextPlayer.handCards.push(randomCard);
+              room.logs.push(`${nextPlayer.name} 获得了 ${target.name} 的一张牌`);
+            }
+          }
+        } else if (nextPlayer.warrior?.skill === '英姿') {
+          room.logs.push(`${nextPlayer.name} 发动英姿，多摸一张牌`);
+          for (let i = 0; i < 3; i++) {
+            if (room.deck.length > 0) {
+              nextPlayer.handCards.push(room.deck.pop());
+            }
+          }
+        } else {
+          for (let i = 0; i < 2; i++) {
+            if (room.deck.length > 0) {
+              nextPlayer.handCards.push(room.deck.pop());
+            }
+          }
+        }
+        
+        if (nextPlayer.warrior?.skill?.includes('观星')) {
+          room.logs.push(`${nextPlayer.name} 发动观星`);
+        }
+        break;
+      } else {
+        room.logs.push(`${nextPlayer.name} 被乐不思蜀锁定，跳过出牌阶段`);
+        nextPlayer.isLocked = false;
+        room.currentPlayerIndex = (room.currentPlayerIndex + 1) % room.players.length;
+        if (room.currentPlayerIndex === 0) {
+          room.turnNumber++;
+          room.logs.push(`第 ${room.turnNumber} 回合开始`);
+        }
       }
     }
 
     return room;
+  }
+
+  resolveDelayedEffects(room, player) {
+    player.isLocked = false;
+    
+    player.delayedEffects = player.delayedEffects.filter(effect => {
+      if (effect.type === 'locked') {
+        const roll = Math.floor(Math.random() * 13) + 1;
+        room.logs.push(`${player.name} 的乐不思蜀判定：${roll}`);
+        if (roll !== 12) {
+          player.isLocked = true;
+          return true;
+        }
+        room.logs.push(`判定成功，乐不思蜀解除`);
+        return false;
+      }
+      
+      if (effect.type === 'lightning') {
+        const roll = Math.floor(Math.random() * 13) + 1;
+        room.logs.push(`${player.name} 的闪电判定：${roll}`);
+        if (roll >= 10 && roll <= 13) {
+          room.logs.push(`判定成功！${player.name} 受到3点雷电伤害`);
+          this.dealDamage(room, player, 3);
+          return false;
+        }
+        room.logs.push(`判定失败，闪电传递给下一位玩家`);
+        const nextIndex = (room.players.findIndex(p => p.id === player.id) + 1) % room.players.length;
+        const nextPlayer = room.players[nextIndex];
+        nextPlayer.delayedEffects.push(effect);
+        return false;
+      }
+      
+      return true;
+    });
   }
 
   checkGameOver(room) {
@@ -656,6 +1388,11 @@ class GameEngine {
           hp: p.warrior.hp,
         } : null,
         hasSelectedWarrior: p.hasSelectedWarrior,
+        isChained: p.isChained || false,
+        delayedEffects: p.delayedEffects.map(e => ({
+          type: e.type,
+          name: e.name,
+        })),
       })),
       currentPlayerIndex: room.currentPlayerIndex,
       gamePhase: room.gamePhase,
